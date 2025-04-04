@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>Calculateur de baies non protégées - CCQ</title>
+  <title>Calculateur de baies non protégées - CNB 2015</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -60,7 +60,7 @@
       background-color: #E8ECEF;
       color: #555;
       font-size: 16px;
-      text-align: center;
+      text-align: left;
     }
     .form-group {
       margin-bottom: 15px;
@@ -95,6 +95,9 @@
       font-size: 0.9em;
       color: #555;
     }
+    .result-item {
+      margin-bottom: 10px;
+    }
     .tab-content {
       display: none;
     }
@@ -114,14 +117,14 @@
     <div class="content">
       <!-- Onglet Général -->
       <div class="left-column tab-content active" id="general">
-        <h3>Calcul basé sur la section 3.2.3 du CCQ</h3>
+        <h3>Calcul basé sur la section 3.2.3 du CNB</h3>
         <div class="form-group">
           <label for="usage-general">Usage du bâtiment :</label>
           <select id="usage-general">
-            <option value="habitation">Habitation</option>
-            <option value="affaires">Affaires</option>
-            <option value="commercial">Commercial</option>
-            <option value="industriel">Industriel</option>
+            <option value="habitation">Habitation (Groupe C)</option>
+            <option value="affaires">Affaires (Groupe D)</option>
+            <option value="commercial">Commercial (Groupe E)</option>
+            <option value="industriel">Industriel (Groupe F)</option>
           </select>
         </div>
         <div class="form-group">
@@ -137,12 +140,15 @@
           <input type="number" id="surface-general" step="0.1" required>
         </div>
         <div class="form-group">
-          <label for="rapport-general">Rapport L/H ou H/L :</label>
-          <select id="rapport-general">
-            <option value="inf3">Moins de 3:1</option>
-            <option value="3a5">3:1 à 5:1</option>
-            <option value="sup5">Plus de 5:1</option>
-          </select>
+          <label>Rapport L/H ou H/L :</label>
+          <div>
+            <label for="largeur-general">Largeur (L, m) :</label>
+            <input type="number" id="largeur-general" step="0.1" required>
+          </div>
+          <div>
+            <label for="hauteur-general">Hauteur (H, m) :</label>
+            <input type="number" id="hauteur-general" step="0.1" required>
+          </div>
         </div>
         <div class="form-group">
           <label for="intervention-general">Délai d'intervention :</label>
@@ -153,13 +159,17 @@
 
       <!-- Onglet Bâtiments -->
       <div class="left-column tab-content" id="batiments">
-        <h3>Calcul basé sur la section 9.10.14 du CCQ</h3>
+        <h3>Calcul basé sur la section 9.10.14 du CNB</h3>
         <div class="form-group">
           <label for="usage-batiments">Type de bâtiment :</label>
           <select id="usage-batiments">
-            <option value="commercial">Commercial</option>
-            <option value="industriel">Industriel</option>
+            <option value="habitation_affaires_industriel_faible">Habitation/Affaires/Industriel faible (C, D, F3)</option>
+            <option value="commercial_industriel_moyen">Commercial/Industriel moyen (E, F1, F2)</option>
           </select>
+        </div>
+        <div class="form-group">
+          <label for="gicleurs-batiments">Protection par gicleurs :</label>
+          <input type="checkbox" id="gicleurs-batiments">
         </div>
         <div class="form-group">
           <label for="distance-batiments">Distance limitative (m) :</label>
@@ -169,12 +179,20 @@
           <label for="surface-batiments">Surface exposée (m²) :</label>
           <input type="number" id="surface-batiments" step="0.1" required>
         </div>
+        <div class="form-group">
+          <label for="surface-fenetres-batiments">Surface des baies existantes (m²) :</label>
+          <input type="number" id="surface-fenetres-batiments" step="0.1" required>
+        </div>
+        <div class="form-group">
+          <label for="intervention-batiments">Délai d'intervention :</label>
+          <input type="checkbox" id="intervention-batiments"> Plus de 10 min dans ≥ 10 % des cas
+        </div>
         <button class="btn" onclick="calculer('batiments')">Calculer</button>
       </div>
 
       <!-- Onglet Maisons -->
       <div class="left-column tab-content" id="maisons">
-        <h3>Calcul basé sur la section 9.10.15 du CCQ</h3>
+        <h3>Calcul basé sur la section 9.10.15 du CNB</h3>
         <div class="form-group">
           <label for="etages-maisons">Nombre d'étages :</label>
           <input type="number" id="etages-maisons" min="1" required>
@@ -198,6 +216,30 @@
   </div>
 
   <script>
+    // Données du tableau 9.10.14.4.-A
+    const tableau91014 = {
+      "habitation_affaires_industriel_faible": {
+        30: { 1.2: 7, 1.5: 9, 2: 12, 4: 39, 6: 88, 8: 100 },
+        40: { 1.2: 7, 1.5: 8, 2: 11, 4: 32, 6: 69, 8: 100 },
+        50: { 1.2: 7, 1.5: 8, 2: 10, 4: 28, 6: 57, 8: 100 },
+        100: { 1.2: 7, 1.5: 8, 2: 9, 4: 18, 6: 34, 8: 56, 10: 84, 12: 100 },
+        150: { 1.2: 7, 1.5: 7, 2: 8, 4: 12, 6: 19, 8: 28, 10: 40, 12: 55, 16: 92, 20: 100 }
+      },
+      "commercial_industriel_moyen": {
+        30: { 1.2: 4, 1.5: 4, 2: 6, 4: 20, 6: 44, 8: 80, 10: 100 },
+        40: { 1.2: 4, 1.5: 4, 2: 6, 4: 16, 6: 34, 8: 61, 10: 97, 12: 100 },
+        50: { 1.2: 4, 1.5: 4, 2: 5, 4: 14, 6: 29, 8: 50, 10: 79, 12: 100 },
+        100: { 1.2: 4, 1.5: 4, 2: 4, 4: 9, 6: 17, 8: 25, 10: 35, 12: 60, 16: 100 },
+        150: { 1.2: 4, 1.5: 4, 2: 4, 4: 6, 6: 10, 8: 14, 10: 20, 12: 27, 16: 46, 20: 70, 25: 100 }
+      }
+    };
+
+    // Fonction d'interpolation linéaire
+    function interpolation(x, x0, x1, y0, y1) {
+      if (x0 === x1) return y0;
+      return y0 + (y1 - y0) * (x - x0) / (x1 - x0);
+    }
+
     // Gestion des onglets
     function showTab(tabId) {
       document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
@@ -217,43 +259,102 @@
         const gicleurs = document.getElementById('gicleurs-general').checked;
         let distance = parseFloat(document.getElementById('distance-general').value);
         const surface = parseFloat(document.getElementById('surface-general').value);
-        const rapport = document.getElementById('rapport-general').value;
+        const largeur = parseFloat(document.getElementById('largeur-general').value);
+        const hauteur = parseFloat(document.getElementById('hauteur-general').value);
         const intervention = document.getElementById('intervention-general').checked;
+
+        // Calcul du rapport L/H ou H/L
+        const rapport = Math.max(largeur / hauteur, hauteur / largeur);
+        let rapportCategory;
+        if (rapport < 2) rapportCategory = "inf2";
+        else if (rapport <= 4) rapportCategory = "2a4";
+        else rapportCategory = "sup4";
 
         // Ajustement si délai d'intervention > 10 min
         if (intervention && !gicleurs) distance /= 2;
 
-        // Exemple de calcul simplifié (à remplacer par les données réelles du CCQ)
+        // Exemple de calcul simplifié (à remplacer par les données réelles du CNB)
         pourcentage = distance < 1.2 ? 10 : distance < 2 ? 20 : 30;
         if (gicleurs) pourcentage *= 2;
         surfaceMax = (pourcentage / 100) * surface;
 
         resultat = `
-          <strong>Résultats (Général) :</strong><br>
-          Pourcentage maximal : <span class="highlight">${pourcentage}%</span><br>
-          Surface maximale : <span class="highlight">${surfaceMax.toFixed(2)} m²</span>
+          <div class="result-item"><strong>Résultats (Général) :</strong></div>
+          <div class="result-item">Pourcentage maximal : <span class="highlight">${pourcentage}%</span></div>
+          <div class="result-item">Surface maximale : <span class="highlight">${surfaceMax.toFixed(2)} m²</span></div>
           <div class="details">
-            - Usage : ${usage}<br>
-            - Distance : ${distance} m${intervention && !gicleurs ? ' (ajustée)' : ''}<br>
-            - Gicleurs : ${gicleurs ? 'Oui' : 'Non'}
+            <div class="result-item">- Usage : ${usage}</div>
+            <div class="result-item">- Distance : ${distance} m${intervention && !gicleurs ? ' (ajustée)' : ''}</div>
+            <div class="result-item">- Rapport L/H ou H/L : ${rapport.toFixed(2)} (${rapportCategory})</div>
+            <div class="result-item">- Gicleurs : ${gicleurs ? 'Oui' : 'Non'}</div>
           </div>
         `;
       } else if (tab === 'batiments') {
         const usage = document.getElementById('usage-batiments').value;
-        const distance = parseFloat(document.getElementById('distance-batiments').value);
+        const gicleurs = document.getElementById('gicleurs-batiments').checked;
+        let distance = parseFloat(document.getElementById('distance-batiments').value);
         const surface = parseFloat(document.getElementById('surface-batiments').value);
+        const surfaceFenetres = parseFloat(document.getElementById('surface-fenetres-batiments').value);
+        const intervention = document.getElementById('intervention-batiments').checked;
 
-        // Calcul simplifié pour bâtiments
-        pourcentage = distance < 1.5 ? 15 : 25;
+        // Ajustement si délai d'intervention > 10 min (paragraphe 8)
+        if (intervention && !gicleurs) distance /= 2;
+
+        // Vérification distance < 1,2 m (paragraphe 4)
+        if (distance < 1.2) {
+          pourcentage = 0;
+        } else {
+          // Sélection du tableau selon l'usage
+          const tableau = tableau91014[usage];
+
+          // Identifier les surfaces et distances pour interpolation
+          const surfaces = Object.keys(tableau).map(Number).sort((a, b) => a - b);
+          let surfaceInf = surfaces.find(s => s >= surface) || surfaces[surfaces.length - 1];
+          let surfaceSup = surfaceInf;
+          if (surfaceInf > surface) {
+            surfaceSup = surfaceInf;
+            surfaceInf = surfaces[surfaces.indexOf(surfaceInf) - 1] || surfaceInf;
+          }
+
+          const distances = Object.keys(tableau[surfaceInf]).map(Number).sort((a, b) => a - b);
+          let distInf = distances.find(d => d >= distance) || distances[distances.length - 1];
+          let distSup = distInf;
+          if (distInf > distance) {
+            distSup = distInf;
+            distInf = distances[distances.indexOf(distInf) - 1] || distInf;
+          }
+
+          // Interpolation
+          if (distInf === distSup && surfaceInf === surfaceSup) {
+            pourcentage = tableau[surfaceInf][distInf];
+          } else {
+            const p1 = tableau[surfaceInf][distInf];
+            const p2 = tableau[surfaceInf][distSup];
+            const p3 = tableau[surfaceSup][distInf];
+            const p4 = tableau[surfaceSup][distSup];
+
+            const interpDistInf = interpolation(surface, surfaceInf, surfaceSup, p1, p3);
+            const interpDistSup = interpolation(surface, surfaceInf, surfaceSup, p2, p4);
+            pourcentage = interpolation(distance, distInf, distSup, interpDistInf, interpDistSup);
+          }
+
+          // Ajustement si gicleurs (paragraphe 2)
+          if (gicleurs) pourcentage = Math.min(pourcentage * 2, 100);
+        }
+
         surfaceMax = (pourcentage / 100) * surface;
+        const conforme = surfaceFenetres <= surfaceMax ? "Oui" : "Non";
 
         resultat = `
-          <strong>Résultats (Bâtiments) :</strong><br>
-          Pourcentage maximal : <span class="highlight">${pourcentage}%</span><br>
-          Surface maximale : <span class="highlight">${surfaceMax.toFixed(2)} m²</span>
+          <div class="result-item"><strong>Résultats (Bâtiments) :</strong></div>
+          <div class="result-item">Pourcentage maximal : <span class="highlight">${pourcentage.toFixed(2)}%</span></div>
+          <div class="result-item">Surface maximale : <span class="highlight">${surfaceMax.toFixed(2)} m²</span></div>
+          <div class="result-item">Surface des baies existantes : <span class="highlight">${surfaceFenetres.toFixed(2)} m²</span></div>
+          <div class="result-item">Conformité : <span class="highlight">${conforme}</span></div>
           <div class="details">
-            - Type : ${usage}<br>
-            - Distance : ${distance} m
+            <div class="result-item">- Type : ${usage}</div>
+            <div class="result-item">- Distance : ${distance} m${intervention && !gicleurs ? ' (ajustée)' : ''}</div>
+            <div class="result-item">- Gicleurs : ${gicleurs ? 'Oui' : 'Non'}</div>
           </div>
         `;
       } else if (tab === 'maisons') {
@@ -266,12 +367,12 @@
         surfaceMax = (pourcentage / 100) * surface;
 
         resultat = `
-          <strong>Résultats (Maisons) :</strong><br>
-          Pourcentage maximal : <span class="highlight">${pourcentage}%</span><br>
-          Surface maximale : <span class="highlight">${surfaceMax.toFixed(2)} m²</span>
+          <div class="result-item"><strong>Résultats (Maisons) :</strong></div>
+          <div class="result-item">Pourcentage maximal : <span class="highlight">${pourcentage}%</span></div>
+          <div class="result-item">Surface maximale : <span class="highlight">${surfaceMax.toFixed(2)} m²</span></div>
           <div class="details">
-            - Étages : ${etages}<br>
-            - Distance : ${distance} m
+            <div class="result-item">- Étages : ${etages}</div>
+            <div class="result-item">- Distance : ${distance} m</div>
           </div>
         `;
       }
