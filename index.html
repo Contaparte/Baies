@@ -1,4 +1,400 @@
-<!DOCTYPE html>
+function calculate91015() {
+            let limitingDistance = parseFloat(document.getElementById('distance_91015').value);
+            const surface = parseFloat(document.getElementById('surface_91015').value);
+            const response = document.getElementById('response_91015').checked;
+            const housingType = document.getElementById('housing_type_91015').value;
+            const revetingType = document.getElementById('reveting_type_91015').value;
+
+            // Si en unités impériales, convertir en métrique pour les calculs
+            let calculLimitingDistance = limitingDistance;
+            let calculSurface = surface;
+            
+            if (!isMetric) {
+                calculLimitingDistance = ftToM(limitingDistance);
+                calculSurface = ft2ToM2(surface);
+            }
+
+            // Vérification des entrées
+            if (isNaN(calculLimitingDistance) || isNaN(calculSurface) || calculLimitingDistance < 0 || calculSurface <= 0) {
+                document.getElementById('method91015-result').innerHTML = "Erreur : Veuillez entrer des valeurs numériques valides.";
+                return;
+            }
+
+            // Ajustement pour le délai d'intervention
+            if (response) {
+                calculLimitingDistance = calculLimitingDistance / 2;
+            }
+
+            const distances = tableau91015.distances;
+            
+            // Si la distance limitative dépasse la plage du tableau
+            if (calculLimitingDistance > distances[distances.length - 1]) {
+                document.getElementById('method91015-result').innerHTML = 
+                    `Distance limitative (${limitingDistance.toFixed(2)} ${isMetric ? "m" : "pi"}) supérieure aux valeurs du tableau.<br>
+                    <strong>Surface maximale des baies non protégées : 100%</strong>`;
+                return;
+            }
+
+            // Trouver les bornes pour l'interpolation de distance
+            const { lower: lowerDistance, upper: upperDistance } = findBounds(calculLimitingDistance, distances);
+            const lowerDistanceIndex = distances.indexOf(lowerDistance);
+            const upperDistanceIndex = distances.indexOf(upperDistance);
+
+            // Définir les surfaces connues du tableau pour l'interpolation
+            const surfaceValues = [30, 40, 50, 100];
+            
+            // Trouver les surfaces les plus proches pour l'interpolation
+            let lowerSurface, upperSurface;
+            
+            if (calculSurface <= 30) {
+                lowerSurface = 30;
+                upperSurface = 40;
+            } else if (calculSurface <= 40) {
+                lowerSurface = 30;
+                upperSurface = 40;
+            } else if (calculSurface <= 50) {
+                lowerSurface = 40;
+                upperSurface = 50;
+            } else if (calculSurface <= 100) {
+                lowerSurface = 50;
+                upperSurface = 100;
+            } else {
+                lowerSurface = 100;
+                upperSurface = ">100";
+            }
+            
+            // Calculer le pourcentage pour la surface inférieure
+            const lowerSurfacePercentageLower = tableau91015.surfaces[lowerSurface][lowerDistanceIndex];
+            const lowerSurfacePercentageUpper = tableau91015.surfaces[lowerSurface][upperDistanceIndex];
+            const lowerSurfacePercentage = interpolate(
+                calculLimitingDistance, 
+                lowerDistance, 
+                upperDistance, 
+                lowerSurfacePercentageLower, 
+                lowerSurfacePercentageUpper
+            );
+            
+            // Calculer le pourcentage pour la surface supérieure
+            const upperSurfacePercentageLower = tableau91015.surfaces[upperSurface === ">100" ? ">100" : upperSurface][lowerDistanceIndex];
+            const upperSurfacePercentageUpper = tableau91015.surfaces[upperSurface === ">100" ? ">100" : upperSurface][upperDistanceIndex];
+            const upperSurfacePercentage = interpolate(
+                calculLimitingDistance, 
+                lowerDistance, 
+                upperDistance, 
+                upperSurfacePercentageLower, 
+                upperSurfacePercentageUpper
+            );
+            
+            // Interpolation finale entre les surfaces
+            let finalPercentage;
+            if (calculSurface > 100) {
+                // Si la surface est > 100, on utilise la formule du CNB 
+                // (LC-1.2m)² pour habitations et 0.5 x (LC-1.2m)² pour établissements commerciaux
+                if (calculLimitingDistance >= 1.2) {
+                    finalPercentage = Math.pow(calculLimitingDistance, 2);
+                    // Limiter à 100%
+                    finalPercentage = Math.min(finalPercentage, 100);
+                } else {
+                    finalPercentage = upperSurfacePercentage; // Utiliser les valeurs du tableau pour >100
+                }
+            } else if (lowerSurface === upperSurface) {
+                finalPercentage = lowerSurfacePercentage;
+            } else {
+                finalPercentage = interpolate(
+                    calculSurface, 
+                    lowerSurface, 
+                    upperSurface, 
+                    lowerSurfacePercentage, 
+                    upperSurfacePercentage
+                );
+            }
+            
+            // Limiter le pourcentage entre 0 et 100
+            finalPercentage = Math.max(0, Math.min(100, finalPercentage));
+            
+            // Calculer la surface maximale
+            const maxArea = (finalPercentage / 100) * calculSurface;
+            
+            // Conversion pour l'affichage si nécessaire
+            let displayMaxArea = maxArea;
+            if (!isMetric) {
+                displayMaxArea = m2ToFt2(maxArea);
+            }
+            
+            // Déterminer les exigences de construction
+            let constructionRequirements = "";
+            if (calculLimitingDistance < 0.6) {
+                constructionRequirements = `
+                    <br><strong>Exigences de construction (selon 9.10.15.5):</strong><br>
+                    - Degré de résistance au feu d'au moins 45 min pour la façade de rayonnement<br>
+                    - Revêtement extérieur ${revetingType === "incombustible" ? "incombustible" : "combustible avec contraintes"}<br>
+                    ${revetingType === "combustible" ? 
+                    `- Le revêtement combustible doit être installé selon l'article 9.10.15.5, paragraphe 2):<br>
+                       &nbsp;&nbsp;• Posé sur revêtement en plaques de plâtre d'au moins 12,7 mm ou maçonnerie<br>
+                       &nbsp;&nbsp;• Doit avoir un indice de propagation de la flamme d'au plus 25<br>
+                       &nbsp;&nbsp;• Si c'est un revêtement conforme à 9.27.12, son épaisseur ne doit pas dépasser 2 mm<br>
+                       &nbsp;&nbsp;• Peut aussi être conforme à l'alinéa 3.1.5.5.1)b)`
+                     : ""}
+                `;
+            } else if (calculLimitingDistance < 1.2) {
+                constructionRequirements = `
+                    <br><strong>Exigences de construction (selon 9.10.15.5):</strong><br>
+                    - Degré de résistance au feu d'au moins 45 min pour la façade de rayonnement<br>
+                    ${revetingType === "combustible" ? 
+                    `- Revêtement combustible soumis aux exigences du paragraphe 3) de l'article 9.10.15.5:<br>
+                       &nbsp;&nbsp;• Si conforme à 9.27.6, 9.27.7, 9.27.8, 9.27.9 ou 9.27.10:<br>
+                       &nbsp;&nbsp;&nbsp;&nbsp;- Posé sur revêtement en plaques de plâtre d'au moins 12,7 mm ou maçonnerie<br>
+                       &nbsp;&nbsp;&nbsp;&nbsp;- Doit avoir un indice de propagation de la flamme d'au plus 25 après conditionnement<br>
+                       &nbsp;&nbsp;• Si conforme à 9.27.12:<br>
+                       &nbsp;&nbsp;&nbsp;&nbsp;- Posé sur revêtement en plaques de plâtre d'au moins 12,7 mm ou maçonnerie<br>
+                       &nbsp;&nbsp;&nbsp;&nbsp;- Doit avoir un indice de propagation de la flamme d'au plus 25<br>
+                       &nbsp;&nbsp;&nbsp;&nbsp;- Ne doit pas dépasser 2 mm d'épaisseur<br>
+                       &nbsp;&nbsp;• Peut aussi être conforme à l'alinéa 3.1.5.5.1)b)`
+                     : "- Revêtement incombustible selon la section 9.20, la sous-section 9.27.11 ou la section 9.28"}
+                `;
+            } else {
+                constructionRequirements = `
+                    <br><strong>Exigences de construction (selon 9.10.15.5):</strong><br>
+                    - Pour distance limitative ≥ 1,2 m: les restrictions sont moins sévères<br>
+                    - Les exigences minimales pour les soffites s'appliquent quand ils font saillie à moins de 1,2 m de la limite de propriété<br>
+                    - Pour les poteaux en gros bois d'œuvre: pas de conformité nécessaire si distance ≥ 3 m
+                `;
+            }
+            
+            // Ajouter des informations spécifiques au type d'habitation
+            let housingInfo = "";
+            if (housingType === "accessoire") {
+                housingInfo = `
+                    <br><strong>Remarque pour logement accessoire:</strong><br>
+                    - Les maisons comportant un logement accessoire peuvent avoir des exigences supplémentaires.<br>
+                    - Vérifier également les exigences de l'article 9.10.15.5 pour les revêtements.<br>
+                `;
+            }
+
+            // Afficher les résultats avec détails des calculs intermédiaires
+            let resultHTML = `
+                <strong>Données de calcul :</strong><br>
+                ${response ? "Distance limitative ajustée : " + calculLimitingDistance.toFixed(2) + " m<br>" : ""}
+                Surface totale de la façade : ${surface.toFixed(2)} ${isMetric ? "m²" : "pi²"}<br>
+                Type d'habitation : ${housingType === "standard" ? "Habitation standard" : "Maison comportant un logement accessoire"}<br>
+                Type de revêtement : ${revetingType === "combustible" ? "Combustible" : "Incombustible"}<br>
+                <br><strong>Détails d'interpolation :</strong><br>
+                Distance limitative entre ${lowerDistance} m et ${upperDistance} m<br>
+                Surface de référence entre ${lowerSurface === upperSurface ? lowerSurface : lowerSurface + " m² et " + upperSurface + " m²"}<br>
+                <br><strong>        function calculate91014() {
+            const usage = document.getElementById('usage_91014').value;
+            const buildingType = document.getElementById('building_type_91014').value;
+            const exteriorFinish = document.getElementById('exterior_finish_91014').value;
+            const soffit_protection = document.getElementById('soffit_protection_91014').checked;
+            let limitingDistance = parseFloat(document.getElementById('distance_91014').value);
+            const surface = parseFloat(document.getElementById('surface_91014').value);
+            const response = document.getElementById('response_91014').checked;
+
+            // Si en unités impériales, convertir en métrique pour les calculs
+            let calculLimitingDistance = limitingDistance;
+            let calculSurface = surface;
+            
+            if (!isMetric) {
+                calculLimitingDistance = ftToM(limitingDistance);
+                calculSurface = ft2ToM2(surface);
+            }
+
+            // Vérification des entrées
+            if (isNaN(calculLimitingDistance) || isNaN(calculSurface) || calculLimitingDistance < 0 || calculSurface <= 0) {
+                document.getElementById('method91014-result').innerHTML = "Erreur : Veuillez entrer des valeurs numériques valides.";
+                return;
+            }
+
+            // Ajustement pour le délai d'intervention
+            if (response) {
+                calculLimitingDistance = calculLimitingDistance / 2;
+            }
+            
+            // Exemption pour les garages ou bâtiments secondaires
+            if (buildingType === "garage") {
+                // Selon 9.10.14.4.(10-12), les baies vitrées des garages peuvent être exemptées des restrictions
+                document.getElementById('method91014-result').innerHTML = `
+                    <strong>Résultat pour garage ou bâtiment secondaire :</strong><br>
+                    Selon les paragraphes 9.10.14.4.(10-12) et 9.10.14.5.(4-5), les garages et bâtiments secondaires 
+                    qui ne desservent qu'un seul logement peuvent bénéficier d'exemptions importantes:<br><br>
+                    
+                    - Si le garage dessert un seul logement et est sur la même propriété: 
+                      <strong>pas de limite de surface pour les baies vitrées</strong><br>
+                    - Pour la construction de la façade de rayonnement, si la distance limitative est d'au moins 0,6 m:
+                      <strong>pas d'exigence quant au degré de résistance au feu</strong><br>
+                    - Si la distance limitative est inférieure à 0,6 m: <strong>un degré de résistance au feu d'au moins 
+                      45 min est requis</strong><br>
+                    - <strong>Aucune exigence quant au type de revêtement</strong>, peu importe la distance limitative<br><br>
+                    
+                    Pour une analyse plus spécifique, veuillez sélectionner "Bâtiment standard" dans le type de bâtiment.
+                `;
+                return;
+            }
+
+            const distances = tableau91014[usage].distances;
+            
+            // Si la distance limitative dépasse la plage du tableau
+            if (calculLimitingDistance > distances[distances.length - 1]) {
+                document.getElementById('method91014-result').innerHTML = 
+                    `Distance limitative (${limitingDistance.toFixed(2)} ${isMetric ? "m" : "pi"}) supérieure aux valeurs du tableau.<br>
+                    <strong>Surface maximale des baies non protégées : 100%</strong>`;
+                return;
+            }
+
+            // Trouver les bornes pour l'interpolation de distance
+            const { lower: lowerDistance, upper: upperDistance } = findBounds(calculLimitingDistance, distances);
+            const lowerDistanceIndex = distances.indexOf(lowerDistance);
+            const upperDistanceIndex = distances.indexOf(upperDistance);
+
+            // Définir les surfaces connues du tableau pour l'interpolation
+            const surfaceValues = [30, 40, 50, 100];
+            
+            // Trouver les surfaces les plus proches pour l'interpolation
+            let lowerSurface, upperSurface;
+            
+            if (calculSurface <= 30) {
+                lowerSurface = 30;
+                upperSurface = 40;
+            } else if (calculSurface <= 40) {
+                lowerSurface = 30;
+                upperSurface = 40;
+            } else if (calculSurface <= 50) {
+                lowerSurface = 40;
+                upperSurface = 50;
+            } else if (calculSurface <= 100) {
+                lowerSurface = 50;
+                upperSurface = 100;
+            } else {
+                lowerSurface = 100;
+                upperSurface = ">100";
+            }
+            
+            // Calculer le pourcentage pour la surface inférieure
+            const lowerSurfacePercentageLower = tableau91014[usage].surfaces[lowerSurface][lowerDistanceIndex];
+            const lowerSurfacePercentageUpper = tableau91014[usage].surfaces[lowerSurface][upperDistanceIndex];
+            const lowerSurfacePercentage = interpolate(
+                calculLimitingDistance, 
+                lowerDistance, 
+                upperDistance, 
+                lowerSurfacePercentageLower, 
+                lowerSurfacePercentageUpper
+            );
+            
+            // Calculer le pourcentage pour la surface supérieure
+            const upperSurfacePercentageLower = tableau91014[usage].surfaces[upperSurface === ">100" ? ">100" : upperSurface][lowerDistanceIndex];
+            const upperSurfacePercentageUpper = tableau91014[usage].surfaces[upperSurface === ">100" ? ">100" : upperSurface][upperDistanceIndex];
+            const upperSurfacePercentage = interpolate(
+                calculLimitingDistance, 
+                lowerDistance, 
+                upperDistance, 
+                upperSurfacePercentageLower, 
+                upperSurfacePercentageUpper
+            );
+            
+            // Interpolation finale entre les surfaces
+            let finalPercentage;
+            if (calculSurface > 100) {
+                // Si la surface est > 100, on utilise la formule du CNB 
+                // (LC-1.2m)² pour habitations et 0.5 x (LC-1.2m)² pour établissements commerciaux
+                if (calculLimitingDistance >= 1.2) {
+                    if (usage === "habitation") {
+                        finalPercentage = Math.pow(calculLimitingDistance, 2);
+                    } else { // commercial
+                        finalPercentage = 0.5 * Math.pow(calculLimitingDistance, 2);
+                    }
+                    // Limiter à 100%
+                    finalPercentage = Math.min(finalPercentage, 100);
+                } else {
+                    finalPercentage = upperSurfacePercentage; // Utiliser les valeurs du tableau pour >100
+                }
+            } else if (lowerSurface === upperSurface) {
+                finalPercentage = lowerSurfacePercentage;
+            } else {
+                finalPercentage = interpolate(
+                    calculSurface, 
+                    lowerSurface, 
+                    upperSurface, 
+                    lowerSurfacePercentage, 
+                    upperSurfacePercentage
+                );
+            }
+            
+            // Limiter le pourcentage entre 0 et 100
+            finalPercentage = Math.max(0, Math.min(100, finalPercentage));
+            
+            // Calculer la surface maximale
+            const maxArea = (finalPercentage / 100) * calculSurface;
+
+            // Conversion pour l'affichage si nécessaire
+            let displayMaxArea = maxArea;
+            if (!isMetric) {
+                displayMaxArea = m2ToFt2(maxArea);
+            }
+            
+            // Déterminer les exigences de construction et de protection
+            let constructionRequirements = "";
+            
+            if (calculLimitingDistance < 1.2) {
+                constructionRequirements = `
+                    <br><strong>Exigences pour distance limitative < 1,2 m (9.10.14.4.2):</strong><br>
+                    - Les ouvertures doivent être protégées par des dispositifs d'obturation<br>
+                    - Le verre armé et les briques de verre ne sont pas autorisés<br>
+                    - ${exteriorFinish === "incombustible" ? 
+                        "Revêtement incombustible requis pour les façades" : 
+                        "Revêtement combustible soumis à des restrictions importantes (voir 9.10.14.5)"}<br>
+                `;
+            }
+            
+            // Informations sur les soffites
+            let soffitInfo = "";
+            if (calculLimitingDistance < 0.45) {
+                soffitInfo = `
+                    <br><strong>Protection des soffites (9.10.14.5.9):</strong><br>
+                    - Aucun soffite de toit en saillie ne doit être construit au-dessus de la façade de rayonnement<br>
+                `;
+            } else if (calculLimitingDistance < 1.2) {
+                soffitInfo = `
+                    <br><strong>Protection des soffites (9.10.14.5.10-12):</strong><br>
+                    - Les soffites ne doivent pas faire saillie à moins de 0,45 m de la limite de propriété<br>
+                    - Si un soffite fait saillie à moins de 1,2 m de la limite de propriété, il doit:<br>
+                    &nbsp;&nbsp;• Ne comporter aucune ouverture<br>
+                    &nbsp;&nbsp;• Être protégé par un matériau approprié selon 9.10.14.5.12)b)<br>
+                    ${soffit_protection ? "✅ Vous avez indiqué que les soffites sont protégés conformément au code." : 
+                    "⚠️ Protection des soffites requise mais non confirmée."}
+                `;
+            }
+
+            // Afficher les résultats avec détails des calculs intermédiaires
+            let resultHTML = `
+                <strong>Données de calcul :</strong><br>
+                ${response ? "Distance limitative ajustée : " + calculLimitingDistance.toFixed(2) + " m<br>" : ""}
+                Type d'usage : ${usage === "habitation" ? "Habitation, établissement d'affaires et établissement industriel à risques faibles" : "Établissement commercial et établissement industriel à risques moyens"}<br>
+                Surface totale de la façade : ${surface.toFixed(2)} ${isMetric ? "m²" : "pi²"}<br>
+                <br><strong>Détails d'interpolation :</strong><br>
+                Distance limitative entre ${lowerDistance} m et ${upperDistance} m<br>
+                Surface de référence entre ${lowerSurface === upperSurface ? lowerSurface : lowerSurface + " m² et " + upperSurface + " m²"}<br>
+                <br><strong>Résultats :</strong><br>
+                Pourcentage maximal de baies non protégées : ${finalPercentage.toFixed(2)}%<br>
+                Surface maximale de baies non protégées : ${displayMaxArea.toFixed(2)} ${isMetric ? "m²" : "pi²"}
+                ${constructionRequirements}
+                ${soffitInfo}
+            `;
+
+            document.getElementById('method91014-result').innerHTML = resultHTML;
+        }
+
+        // Données du Tableau 9.10.15.4
+        const tableau91015 = {
+            surfaces: {
+                30: [0, 7, 9, 12, 39, 88, 100, 100, 100, 100, 100],
+                40: [0, 7, 8, 11, 32, 69, 100, 100, 100, 100, 100],
+                50: [0, 7, 8, 10, 28, 57, 100, 100, 100, 100, 100],
+                100: [0, 7, 8, 9, 18, 34, 56, 84, 100, 100, 100],
+                ">100": [0, 7, 7, 8, 12, 19, 28, 40, 55, 92, 100]
+            },
+            distances: [0, 1.2, 1.5, 2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 16.0, 20.0]
+        };
+                        <!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -7,7 +403,8 @@
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; background-color: #f9f9f9; }
         #app { max-width: 800px; margin: 0 auto; padding: 20px; background-color: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); }
-        h1 { color: #333; text-align: center; }
+        h1 { color: #333; text-align: center; margin-bottom: 5px; }
+        h2 { color: #444; text-align: center; margin-top: 0; font-size: 1.4em; }
         .tab-nav { overflow: hidden; background-color: #f1f1f1; border-bottom: 1px solid #ccc; }
         .tab-nav button { background-color: inherit; float: left; border: none; outline: none; cursor: pointer; padding: 14px 16px; transition: 0.3s; font-size: 16px; }
         .tab-nav button:hover { background-color: #ddd; }
@@ -20,11 +417,91 @@
         button { margin: 10px 0; padding: 10px 20px; background-color: #007BFF; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
         button:hover { background-color: #0056b3; }
         .results { background-color: #f1f1f1; padding: 20px; border-radius: 8px; margin-top: 20px; }
+        .info { font-style: italic; font-size: 14px; color: #666; margin-top: 5px; }
+        .function-toolbar { 
+            display: flex; 
+            align-items: center; 
+            margin-bottom: 15px; 
+            background-color: #f5f5f5; 
+            padding: 8px; 
+            border-radius: 4px;
+            justify-content: space-between;
+        }
+        .function-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        .function-button {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #f8f8f8;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 20px;
+            cursor: pointer;
+            position: relative;
+        }
+        .function-button:hover {
+            background-color: #e8e8e8;
+        }
+        .function-button .tooltip {
+            visibility: hidden;
+            width: 200px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -100px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 14px;
+        }
+        .function-button:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+        .elevation-title {
+            font-weight: bold;
+            font-size: 16px;
+            margin-left: 10px;
+        }
     </style>
 </head>
 <body>
     <div id="app">
         <h1>Calculateur de baies non protégées (CNB)</h1>
+        <h2>Élévation avant</h2>
+        
+        <div class="function-toolbar">
+            <div class="function-buttons">
+                <div class="function-button" onclick="addFacade()">
+                    <span>+</span>
+                    <span class="tooltip">Ajouter une façade de rayonnement pour cette élévation</span>
+                </div>
+                <div class="function-button" onclick="toggleUnit()">
+                    <span>⊿</span>
+                    <span class="tooltip">Impérial/Métrique</span>
+                </div>
+                <div class="function-button" onclick="copyToClipboard()">
+                    <span>📋</span>
+                    <span class="tooltip">Copier les valeurs dans le presse-papier</span>
+                </div>
+                <div class="function-button" onclick="printResults()">
+                    <span>🖨️</span>
+                    <span class="tooltip">Imprimer les résultats</span>
+                </div>
+            </div>
+            <span class="elevation-title">Façade de rayonnement #1</span>
+        </div>
+        
         <div class="tab-nav">
             <button class="tab-link active" onclick="openTab(event, 'cnb')">Méthode CNB (3.2.3.)</button>
             <button class="tab-link" onclick="openTab(event, 'method91014')">Méthode 9.10.14</button>
@@ -33,7 +510,7 @@
 
         <!-- Onglet Méthode CNB (3.2.3.) -->
         <div id="cnb" class="tab-content active">
-            <p>Calcul basé sur la section 3.2.3 du CNB (Tableau 3.2.3.1-B ou 3.2.3.1-D)</p>
+            <p>Calcul basé sur la section 3.2.3 du CNB</p>
             <div class="form-group">
                 <label for="usage_cnb">Usage du bâtiment</label>
                 <select id="usage_cnb">
@@ -41,368 +518,322 @@
                     <option value="groupes_E_F1_F2">Usages des groupes E et F divisions 1 et 2</option>
                 </select>
             </div>
+            
+            <div class="form-group">
+                <label for="construction_type_cnb">Type de construction</label>
+                <select id="construction_type_cnb">
+                    <option value="incombustible">Incombustible</option>
+                    <option value="combustible">Combustible</option>
+                </select>
+                <div class="info">Selon 3.2.3.7, le type de construction a un impact sur les exigences.</div>
+            </div>
+            
+            <div class="form-group">
+                <label for="revetement_type_cnb">Type de revêtement</label>
+                <select id="revetement_type_cnb">
+                    <option value="incombustible">Incombustible</option>
+                    <option value="combustible">Combustible</option>
+                </select>
+            </div>
+            
             <div class="form-group">
                 <label><input type="checkbox" id="sprinklers_cnb"> Bâtiment entièrement protégé par gicleurs</label>
             </div>
+            
             <div class="form-group">
                 <label for="distance_cnb">Distance limitative (m)</label>
-                <input type="number" id="distance_cnb" value="5" min="0">
+                <input type="number" id="distance_cnb" value="5" min="0" step="0.1">
             </div>
+            
             <div class="form-group">
                 <label for="surface_cnb">Surface de la façade de rayonnement (m²)</label>
                 <input type="number" id="surface_cnb" value="120" min="0">
             </div>
+            
             <div class="form-group">
                 <label for="length_cnb">Longueur de la façade (m)</label>
                 <input type="number" id="length_cnb" value="20" min="0">
             </div>
+            
             <div class="form-group">
                 <label for="height_cnb">Hauteur de la façade (m)</label>
                 <input type="number" id="height_cnb" value="6" min="0">
             </div>
+            
+            <div class="form-group">
+                <label><input type="checkbox" id="glass_brick_cnb"> Baies protégées par briques de verre/verre armé</label>
+                <div class="info">Selon 3.2.3.12, permet de doubler la surface maximale autorisée.</div>
+            </div>
+            
             <div class="form-group">
                 <label><input type="checkbox" id="response_cnb"> Plus de 10 min dans 10 % ou plus des cas</label>
+                <div class="info">Si coché, la distance limitative est divisée par 2 (selon le paragraphe 3.2.3.1. 8))</div>
             </div>
+            
             <button onclick="calculateCNB()">Calculer</button>
-            <p id="cnb-result" class="results"></p>
+            <div id="cnb-result" class="results"></div>
         </div>
 
         <!-- Onglet Méthode 9.10.14 -->
         <div id="method91014" class="tab-content">
-            <p>Calcul basé sur la méthode 9.10.14 du CNB (Tableau 9.10.14.4-A)</p>
+            <p>Calcul basé sur la sous-section 9.10.14 du CNB (Tableau 9.10.14.4-A)</p>
             <div class="form-group">
                 <label for="usage_91014">Usage du bâtiment</label>
                 <select id="usage_91014">
-                    <option value="habitation">Habitation</option>
-                    <option value="commercial">Commercial/Industriel</option>
+                    <option value="habitation">Habitation, établissement d'affaires et établissement industriel à risques faibles</option>
+                    <option value="commercial">Établissement commercial et établissement industriel à risques moyens</option>
                 </select>
             </div>
+            
+            <div class="form-group">
+                <label for="building_type_91014">Type de bâtiment</label>
+                <select id="building_type_91014">
+                    <option value="standard">Bâtiment standard</option>
+                    <option value="garage">Garage ou bâtiment secondaire</option>
+                </select>
+                <div class="info">Les garages et bâtiments secondaires peuvent bénéficier d'exemptions selon 9.10.14.4(10-12) et 9.10.14.5(4-5).</div>
+            </div>
+            
             <div class="form-group">
                 <label for="distance_91014">Distance limitative (m)</label>
-                <input type="number" id="distance_91014" value="1.2" min="0">
+                <input type="number" id="distance_91014" value="2.0" min="0" step="0.1">
             </div>
+            
             <div class="form-group">
                 <label for="surface_91014">Surface de la façade de rayonnement (m²)</label>
                 <input type="number" id="surface_91014" value="30" min="0">
             </div>
+            
+            <div class="form-group">
+                <label for="exterior_finish_91014">Type de revêtement extérieur</label>
+                <select id="exterior_finish_91014">
+                    <option value="combustible">Combustible</option>
+                    <option value="incombustible">Incombustible</option>
+                </select>
+                <div class="info">Le type de revêtement est important pour les distances limitatives inférieures à 1,2 m.</div>
+            </div>
+            
+            <div class="form-group">
+                <label><input type="checkbox" id="soffit_protection_91014"> Soffites protégés</label>
+                <div class="info">Concerne les soffites faisant saillie à moins de 1,2 m de la limite de propriété (9.10.14.5).</div>
+            </div>
+            
+            <div class="form-group">
+                <label><input type="checkbox" id="response_91014"> Plus de 10 min dans 10 % ou plus des cas</label>
+                <div class="info">Si coché, la distance limitative est divisée par 2 (selon le paragraphe 9.10.14.3. 1))</div>
+            </div>
+            
             <button onclick="calculate91014()">Calculer</button>
-            <p id="method91014-result" class="results"></p>
+            <div id="method91014-result" class="results"></div>
         </div>
 
         <!-- Onglet Méthode 9.10.15 -->
         <div id="method91015" class="tab-content">
-            <p>Calcul basé sur la méthode 9.10.15 du CNB (Tableau 9.10.15.4)</p>
+            <p>Calcul basé sur la sous-section 9.10.15 du CNB (Tableau 9.10.15.4) - Pour habitations</p>
+            <div class="info">Cette méthode s'applique uniquement aux bâtiments qui ne renferment que des logements et dont aucun des logements n'est situé au-dessus d'un autre logement.</div>
+            
             <div class="form-group">
-                <label for="usage_91015">Usage du bâtiment</label>
-                <select id="usage_91015">
-                    <option value="habitation">Habitation</option>
-                    <option value="commercial">Commercial/Industriel</option>
+                <label for="housing_type_91015">Type d'habitation</label>
+                <select id="housing_type_91015">
+                    <option value="standard">Habitation standard</option>
+                    <option value="accessoire">Maison comportant un logement accessoire</option>
                 </select>
+                <div class="info">Selon 9.10.15.1., les maisons comportant un logement accessoire suivent des règles spécifiques.</div>
             </div>
+            
             <div class="form-group">
                 <label for="distance_91015">Distance limitative (m)</label>
-                <input type="number" id="distance_91015" value="2" min="0">
+                <input type="number" id="distance_91015" value="2.0" min="0" step="0.1">
             </div>
+            
             <div class="form-group">
                 <label for="surface_91015">Surface de la façade de rayonnement (m²)</label>
                 <input type="number" id="surface_91015" value="50" min="0">
             </div>
+            
+            <div class="form-group">
+                <label for="reveting_type_91015">Type de revêtement extérieur</label>
+                <select id="reveting_type_91015">
+                    <option value="combustible">Combustible</option>
+                    <option value="incombustible">Incombustible</option>
+                </select>
+                <div class="info">Selon 9.10.15.5, le type de revêtement a un impact sur les exigences de construction.</div>
+            </div>
+            
+            <div class="form-group">
+                <label><input type="checkbox" id="response_91015"> Plus de 10 min dans 10 % ou plus des cas</label>
+                <div class="info">Si coché, la distance limitative est divisée par 2 (selon le paragraphe 9.10.15.3. 1))</div>
+            </div>
+            
             <button onclick="calculate91015()">Calculer</button>
-            <p id="method91015-result" class="results"></p>
+            <div id="method91015-result" class="results"></div>
         </div>
     </div>
 
     <script>
-        // Données du Tableau 3.2.3.1.-B (Sans gicleurs) - Corrigées
-        const unprotectedOpeningsTableNoSprinklers = {
+        // Tableau 3.2.3.1.-B - Usages des groupes A, B3, C, D et F3 - Sans gicleurs
+        const tableauGroupesAB3CDF3 = {
             10: {
                 "< 3:1": [0, 8, 10, 18, 29, 46, 91, 100],
                 "3:1 à 10:1": [0, 8, 12, 21, 33, 50, 96, 100],
-                "> 10:1": [0, 11, 16, 32, 48, 68, 100, 100],
+                "> 10:1": [0, 11, 18, 32, 48, 68, 100]
             },
             15: {
                 "< 3:1": [0, 7, 9, 14, 22, 33, 63, 100],
                 "3:1 à 10:1": [0, 8, 10, 17, 25, 37, 67, 100],
-                "> 10:1": [0, 10, 15, 26, 39, 56, 87, 100],
+                "> 10:1": [0, 10, 15, 26, 39, 53, 87, 100]
             },
             20: {
-                "< 3:1": [0, 7, 9, 12, 18, 26, 48, 81, 100],
-                "3:1 à 10:1": [0, 8, 10, 15, 21, 30, 55, 85, 100],
-                "> 10:1": [0, 9, 14, 23, 33, 45, 73, 100],
+                "< 3:1": [0, 7, 9, 12, 18, 26, 49, 81, 100],
+                "3:1 à 10:1": [0, 8, 10, 15, 21, 30, 53, 85, 100],
+                "> 10:1": [0, 9, 14, 23, 33, 45, 72, 100]
             },
             25: {
                 "< 3:1": [0, 7, 8, 11, 16, 23, 41, 66, 98, 100],
                 "3:1 à 10:1": [0, 8, 9, 13, 19, 26, 45, 70, 100],
-                "> 10:1": [0, 9, 13, 21, 30, 39, 62, 90, 100],
+                "> 10:1": [0, 9, 13, 21, 30, 39, 62, 90, 100]
             },
             30: {
-                "< 3:1": [0, 7, 9, 12, 15, 20, 35, 61, 88, 100],
+                "< 3:1": [0, 7, 8, 11, 15, 20, 35, 56, 83, 100],
                 "3:1 à 10:1": [0, 7, 9, 12, 17, 23, 39, 61, 88, 100],
-                "> 10:1": [0, 8, 12, 19, 27, 38, 56, 79, 100],
+                "> 10:1": [0, 8, 12, 19, 27, 36, 56, 79, 100]
             },
             40: {
                 "< 3:1": [0, 7, 8, 10, 13, 17, 28, 44, 64, 89, 100],
                 "3:1 à 10:1": [0, 7, 8, 11, 15, 20, 32, 48, 69, 93, 100],
-                "> 10:1": [0, 8, 11, 17, 24, 31, 47, 66, 83, 100],
+                "> 10:1": [0, 8, 11, 17, 24, 31, 47, 66, 88, 100]
             },
             50: {
                 "< 3:1": [0, 7, 8, 9, 12, 15, 24, 37, 53, 72, 96, 100],
                 "3:1 à 10:1": [0, 7, 8, 10, 14, 18, 28, 41, 57, 77, 100],
-                "> 10:1": [0, 8, 11, 15, 21, 28, 41, 57, 76, 87, 100],
+                "> 10:1": [0, 8, 10, 15, 21, 28, 41, 57, 76, 97, 100]
             },
             60: {
                 "< 3:1": [0, 7, 8, 9, 11, 14, 21, 32, 45, 62, 81, 100],
                 "3:1 à 10:1": [0, 7, 8, 10, 13, 16, 25, 36, 49, 66, 85, 100],
-                "> 10:1": [0, 8, 10, 14, 20, 25, 38, 51, 67, 85, 100],
+                "> 10:1": [0, 8, 10, 14, 20, 25, 38, 51, 67, 85, 100]
             },
             80: {
                 "< 3:1": [0, 7, 7, 8, 10, 12, 18, 26, 36, 48, 62, 79, 98, 100],
-                "3:1 à 10:1": [0, 7, 8, 9, 11, 14, 20, 29, 40, 52, 67, 84, 100],
-                "> 10:1": [0, 8, 9, 13, 17, 22, 29, 39, 50, 62, 76, 89, 100],
+                "3:1 à 10:1": [0, 7, 8, 9, 11, 14, 21, 29, 40, 52, 67, 84, 100],
+                "> 10:1": [0, 8, 9, 13, 17, 22, 32, 44, 56, 70, 86, 100]
             },
             100: {
                 "< 3:1": [0, 7, 7, 8, 9, 11, 16, 22, 30, 40, 51, 65, 80, 97, 100],
                 "3:1 à 10:1": [0, 7, 8, 9, 11, 13, 18, 25, 34, 44, 56, 69, 84, 100],
-                "> 10:1": [0, 7, 9, 12, 16, 20, 29, 39, 48, 61, 74, 89, 100],
+                "> 10:1": [0, 7, 9, 12, 16, 20, 29, 39, 49, 61, 74, 89, 100]
             },
             150: {
                 "< 3:1": [0, 7, 7, 8, 9, 10, 13, 17, 22, 29, 37, 46, 56, 67, 79, 93, 100],
                 "3:1 à 10:1": [0, 7, 7, 8, 10, 11, 15, 20, 26, 33, 41, 50, 60, 71, 84, 97, 100],
-                "> 10:1": [0, 7, 8, 11, 13, 17, 24, 31, 39, 48, 57, 68, 79, 91, 100],
+                "> 10:1": [0, 7, 8, 11, 13, 17, 24, 31, 39, 48, 57, 68, 79, 91, 100]
             },
             250: {
                 "< 3:1": [0, 7, 7, 7, 8, 9, 10, 13, 16, 20, 25, 30, 36, 43, 51, 59, 68, 87, 100],
                 "3:1 à 10:1": [0, 7, 7, 8, 9, 10, 12, 15, 19, 24, 28, 34, 40, 47, 55, 63, 72, 92, 100],
-                "> 10:1": [0, 7, 8, 9, 11, 14, 19, 24, 30, 36, 43, 50, 58, 66, 73, 82, 92, 100],
+                "> 10:1": [0, 7, 8, 9, 11, 14, 19, 24, 30, 36, 43, 50, 57, 65, 73, 82, 92, 100]
             },
             350: {
-                "< 3:1": [0, 7, 7, 7, 8, 8, 9, 11, 14, 16, 20, 24, 27, 32, 37, 42, 48, 64, 81, 99, 100],
-                "3:1 à 10:1": [0, 7, 7, 8, 8, 9, 11, 13, 16, 20, 23, 27, 31, 36, 41, 46, 52, 69, 85, 100],
-                "> 10:1": [0, 7, 8, 9, 10, 12, 15, 19, 23, 27, 32, 37, 42, 47, 52, 58, 64, 81, 90, 100],
+                "< 3:1": [0, 7, 7, 7, 8, 8, 9, 11, 14, 16, 20, 24, 28, 33, 38, 44, 50, 64, 81, 99, 100],
+                "3:1 à 10:1": [0, 7, 7, 8, 8, 9, 11, 13, 16, 19, 23, 27, 32, 37, 42, 48, 55, 69, 85, 100],
+                "> 10:1": [0, 7, 8, 9, 10, 12, 16, 21, 25, 30, 36, 41, 47, 53, 59, 66, 73, 88, 100]
             },
             500: {
-                "< 3:1": [0, 7, 7, 7, 7, 8, 9, 10, 12, 14, 16, 19, 22, 25, 29, 33, 37, 47, 58, 71, 100],
-                "3:1 à 10:1": [0, 7, 7, 7, 8, 9, 10, 12, 14, 16, 19, 22, 25, 29, 33, 37, 41, 52, 63, 76, 100],
-                "> 10:1": [0, 7, 8, 8, 9, 11, 14, 18, 22, 25, 30, 34, 38, 43, 48, 53, 58, 70, 82, 96, 100],
+                "< 3:1": [0, 7, 7, 7, 7, 8, 9, 10, 12, 14, 16, 19, 22, 25, 29, 33, 37, 47, 59, 71, 100],
+                "3:1 à 10:1": [0, 7, 7, 7, 8, 8, 10, 12, 14, 16, 19, 22, 25, 29, 33, 37, 41, 52, 63, 76, 100],
+                "> 10:1": [0, 7, 7, 8, 9, 11, 14, 18, 22, 25, 30, 34, 38, 43, 48, 53, 58, 70, 82, 96, 100]
             },
             1000: {
-                "< 3:1": [0, 7, 7, 7, 7, 8, 9, 9, 10, 12, 13, 14, 16, 18, 20, 22, 27, 33, 39, 58, 82, 100],
-                "3:1 à 10:1": [0, 7, 7, 7, 8, 8, 9, 10, 11, 12, 14, 15, 17, 19, 21, 23, 26, 31, 37, 43, 63, 86, 100],
-                "> 10:1": [0, 7, 7, 8, 9, 10, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 36, 41, 46, 60, 82, 100],
+                "< 3:1": [0, 7, 7, 7, 7, 7, 8, 9, 9, 10, 12, 13, 14, 16, 18, 20, 22, 27, 33, 39, 58, 82, 100],
+                "3:1 à 10:1": [0, 7, 7, 7, 7, 8, 9, 10, 11, 12, 14, 15, 17, 19, 21, 23, 26, 31, 37, 43, 63, 86, 100],
+                "> 10:1": [0, 7, 7, 8, 8, 9, 11, 13, 16, 19, 21, 24, 27, 30, 33, 36, 39, 46, 53, 60, 82, 100]
             },
             2000: {
-                "< 3:1": [0, 7, 7, 7, 7, 7, 8, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 20, 23, 27, 37, 49, 63, 79, 97, 100],
-                "3:1 à 10:1": [0, 7, 7, 7, 7, 8, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 23, 27, 36, 46, 60, 77, 93, 100],
-                "> 10:1": [0, 7, 7, 8, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 21, 23, 25, 27, 32, 36, 40, 53, 66, 82, 99, 100],
+                "< 3:1": [0, 7, 7, 7, 7, 7, 7, 8, 8, 9, 9, 10, 11, 12, 13, 14, 15, 17, 20, 23, 33, 44, 58, 74, 93, 100],
+                "3:1 à 10:1": [0, 7, 7, 7, 7, 7, 8, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 20, 23, 27, 37, 49, 63, 79, 97, 100],
+                "> 10:1": [0, 7, 7, 7, 8, 8, 9, 11, 12, 14, 16, 18, 19, 21, 23, 25, 27, 32, 36, 40, 53, 66, 82, 99, 100]
+            }
+        };
+        
+        // Tableau 3.2.3.1.-C - Usages des groupes E, F1 et F2 - Sans gicleurs
+        const tableauGroupesEF1F2 = {
+            10: {
+                "< 3:1": [0, 4, 5, 9, 15, 23, 46, 77, 100],
+                "3:1 à 10:1": [0, 4, 6, 10, 17, 25, 48, 79, 100],
+                "> 10:1": [0, 5, 9, 16, 24, 34, 58, 91, 100]
             },
-        };
-
-        // Données du Tableau 3.2.3.1.-D (Avec gicleurs)
-        const unprotectedOpeningsTableWithSprinklers = {
-            10: [0, 16, 24, 34, 50, 74, 100],
-            15: [0, 16, 24, 42, 66, 74, 100],
-            20: [0, 16, 20, 30, 42, 60, 100],
-            25: [0, 16, 18, 26, 38, 52, 90, 100],
-            30: [0, 14, 18, 24, 34, 46, 78, 100],
-            40: [0, 14, 16, 22, 30, 40, 64, 96, 100],
-            50: [0, 14, 16, 20, 28, 36, 56, 82, 100],
-            60: [0, 14, 16, 20, 26, 32, 50, 72, 98, 100],
-            80: [0, 14, 16, 18, 24, 28, 42, 58, 80, 100],
-            100: [0, 14, 16, 18, 22, 26, 36, 50, 68, 88, 100],
-            150: [0, 14, 14, 16, 20, 22, 30, 40, 52, 66, 82, 100],
-            250: [0, 14, 14, 14, 16, 18, 22, 30, 40, 52, 66, 82, 100],
-            350: [0, 14, 14, 14, 16, 16, 18, 22, 28, 36, 46, 58, 72, 100],
-            500: [0, 14, 14, 14, 14, 16, 18, 20, 24, 28, 34, 42, 52, 66, 100],
-            1000: [0, 14, 14, 14, 14, 16, 18, 18, 20, 24, 26, 30, 34, 40, 58, 82, 100],
-            2000: [0, 14, 14, 14, 14, 14, 16, 16, 18, 20, 22, 24, 26, 28, 30, 40, 52, 66, 82, 100],
-        };
-
-        const limitingDistancesNoSprinklers = [0, 1.2, 1.5, 2.0, 2.5, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 25, 30, 35, 40, 45, 50];
-        const limitingDistancesWithSprinklers = [0, 1.2, 1.5, 2.0, 2.5, 3, 4, 5, 6, 7, 8, 9, 10];
-        const facadeSurfaces = [10, 15, 20, 25, 30, 40, 50, 60, 80, 100, 150, 250, 350, 500, 1000, 2000];
-
-        function getRatioCategory(length, height) {
-            const ratioLH = length / height;
-            const ratioHL = height / length;
-            const maxRatio = Math.max(ratioLH, ratioHL);
-            if (maxRatio < 3) return "< 3:1";
-            if (maxRatio <= 10) return "3:1 à 10:1";
-            return "> 10:1";
-        }
-
-        function interpolate(x, x1, x2, y1, y2) {
-            if (x1 === x2) return y1;
-            return y1 + (y2 - y1) * (x - x1) / (x2 - x1);
-        }
-
-        function findBounds(value, array) {
-            let lower = array[0], upper = array[array.length - 1];
-            for (let i = 0; i < array.length - 1; i++) {
-                if (value >= array[i] && value <= array[i + 1]) {
-                    lower = array[i];
-                    upper = array[i + 1];
-                    break;
-                }
-            }
-            return { lower, upper };
-        }
-
-        function calculateCNB() {
-            const facadeSurface = parseFloat(document.getElementById('surface_cnb').value);
-            const length = parseFloat(document.getElementById('length_cnb').value);
-            const height = parseFloat(document.getElementById('height_cnb').value);
-            const limitingDistance = parseFloat(document.getElementById('distance_cnb').value);
-            const sprinklers = document.getElementById('sprinklers_cnb').checked;
-            const response = document.getElementById('response_cnb').checked;
-
-            if (isNaN(facadeSurface) || isNaN(length) || isNaN(height) || isNaN(limitingDistance)) {
-                document.getElementById('cnb-result').innerText = "Erreur : Veuillez entrer des valeurs numériques valides.";
-                return;
-            }
-
-            const ratioCategory = getRatioCategory(length, height);
-            const tableToUse = sprinklers ? unprotectedOpeningsTableWithSprinklers : unprotectedOpeningsTableNoSprinklers;
-            const distancesToUse = sprinklers ? limitingDistancesWithSprinklers : limitingDistancesNoSprinklers;
-
-            // Vérifier si la surface et la distance correspondent exactement à des valeurs du tableau
-            const surfaceExact = facadeSurfaces.includes(facadeSurface);
-            const distanceExact = distancesToUse.includes(limitingDistance);
-
-            let finalPercentage;
-
-            if (surfaceExact && distanceExact) {
-                // Cas où les valeurs sont exactes : pas d'interpolation
-                const surfaceIndex = facadeSurfaces.indexOf(facadeSurface);
-                const distanceIndex = distancesToUse.indexOf(limitingDistance);
-                if (sprinklers) {
-                    // Tableau 3.2.3.1.-D (avec gicleurs) : pas de rapport L/H
-                    finalPercentage = tableToUse[facadeSurface][distanceIndex];
-                } else {
-                    // Tableau 3.2.3.1.-B (sans gicleurs) : utiliser le rapport L/H
-                    finalPercentage = tableToUse[facadeSurface][ratioCategory][distanceIndex];
-                }
-            } else {
-                // Cas où une interpolation est nécessaire
-                const { lower: lowerSurface, upper: upperSurface } = findBounds(facadeSurface, facadeSurfaces);
-                const { lower: lowerDistance, upper: upperDistance } = findBounds(limitingDistance, distancesToUse);
-
-                const lowerDistanceIndex = distancesToUse.indexOf(lowerDistance);
-                const upperDistanceIndex = distancesToUse.indexOf(upperDistance);
-
-                let lowerPercentage, upperPercentage;
-
-                if (sprinklers) {
-                    // Tableau 3.2.3.1.-D (avec gicleurs) : pas de rapport L/H
-                    const lowerPercentageLower = tableToUse[lowerSurface][lowerDistanceIndex];
-                    const lowerPercentageUpper = tableToUse[lowerSurface][upperDistanceIndex];
-                    lowerPercentage = interpolate(limitingDistance, lowerDistance, upperDistance, lowerPercentageLower, lowerPercentageUpper);
-
-                    const upperPercentageLower = tableToUse[upperSurface][lowerDistanceIndex];
-                    const upperPercentageUpper = tableToUse[upperSurface][upperDistanceIndex];
-                    upperPercentage = interpolate(limitingDistance, lowerDistance, upperDistance, upperPercentageLower, upperPercentageUpper);
-                } else {
-                    // Tableau 3.2.3.1.-B (sans gicleurs) : utiliser le rapport L/H
-                    const lowerPercentageLower = tableToUse[lowerSurface][ratioCategory][lowerDistanceIndex];
-                    const lowerPercentageUpper = tableToUse[lowerSurface][ratioCategory][upperDistanceIndex];
-                    lowerPercentage = interpolate(limitingDistance, lowerDistance, upperDistance, lowerPercentageLower, lowerPercentageUpper);
-
-                    const upperPercentageLower = tableToUse[upperSurface][ratioCategory][lowerDistanceIndex];
-                    const upperPercentageUpper = tableToUse[upperSurface][ratioCategory][upperDistanceIndex];
-                    upperPercentage = interpolate(limitingDistance, lowerDistance, upperDistance, upperPercentageLower, upperPercentageUpper);
-                }
-
-                // Interpolation entre les surfaces
-                finalPercentage = interpolate(facadeSurface, lowerSurface, upperSurface, lowerPercentage, upperPercentage);
-            }
-
-            // Ajustement pour le délai d'intervention
-            if (response) finalPercentage *= 0.8;
-
-            document.getElementById('cnb-result').innerText = `Surface maximale des baies non protégées : ${finalPercentage.toFixed(2)}%`;
-        }
-
-        // Données du Tableau 9.10.14.4-A
-        const tableau91014 = {
-            "habitation": {
-                distances: [0, 1.2, 1.5, 2.0, 2.5, 3, 4, 5, 6, 7, 8, 9, 10],
-                percentages: [0, 10, 15, 20, 25, 30, 40, 50, 60, 70, 80, 90, 100]
+            15: {
+                "< 3:1": [0, 4, 5, 7, 11, 16, 32, 53, 79, 100],
+                "3:1 à 10:1": [0, 4, 5, 8, 13, 18, 34, 55, 82, 100],
+                "> 10:1": [0, 5, 8, 13, 19, 26, 43, 66, 93, 100]
             },
-            "commercial": {
-                distances: [0, 1.2, 1.5, 2.0, 2.5, 3, 4, 5, 6, 7, 8, 9, 10],
-                percentages: [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60]
+            20: {
+                "< 3:1": [0, 4, 4, 6, 9, 13, 25, 40, 61, 85, 100],
+                "3:1 à 10:1": [0, 4, 5, 7, 11, 15, 27, 43, 63, 87, 100],
+                "> 10:1": [0, 5, 7, 11, 17, 22, 36, 53, 74, 99, 100]
+            },
+            25: {
+                "< 3:1": [0, 4, 4, 6, 8, 11, 20, 33, 49, 69, 92, 100],
+                "3:1 à 10:1": [0, 4, 5, 7, 9, 13, 22, 35, 51, 71, 94, 100],
+                "> 10:1": [0, 4, 6, 10, 15, 20, 31, 45, 62, 82, 100]
+            },
+            30: {
+                "< 3:1": [0, 4, 4, 5, 7, 10, 18, 28, 42, 58, 77, 100],
+                "3:1 à 10:1": [0, 4, 4, 6, 9, 12, 20, 30, 44, 60, 80, 100],
+                "> 10:1": [0, 4, 6, 10, 14, 18, 28, 40, 54, 71, 91, 100]
+            },
+            40: {
+                "< 3:1": [0, 4, 4, 5, 6, 8, 14, 22, 32, 44, 59, 76, 94, 100],
+                "3:1 à 10:1": [0, 4, 4, 6, 8, 10, 16, 24, 34, 47, 61, 78, 97, 100],
+                "> 10:1": [0, 4, 5, 8, 12, 15, 23, 33, 44, 57, 72, 89, 100]
+            },
+            50: {
+                "< 3:1": [0, 4, 4, 5, 6, 7, 12, 18, 26, 36, 48, 61, 76, 93, 100],
+                "3:1 à 10:1": [0, 4, 4, 5, 7, 9, 14, 20, 29, 38, 50, 63, 79, 95, 100],
+                "> 10:1": [0, 4, 5, 8, 11, 14, 21, 29, 38, 48, 61, 74, 90, 100]
+            },
+            60: {
+                "< 3:1": [0, 4, 4, 4, 5, 7, 11, 16, 23, 31, 40, 52, 64, 78, 94, 100],
+                "3:1 à 10:1": [0, 4, 4, 5, 6, 8, 12, 18, 25, 33, 43, 54, 66, 81, 96, 100],
+                "> 10:1": [0, 4, 5, 7, 10, 13, 19, 26, 34, 43, 53, 64, 77, 92, 100]
+            },
+            80: {
+                "< 3:1": [0, 4, 4, 4, 5, 6, 9, 13, 18, 24, 31, 40, 49, 60, 71, 84, 98, 100],
+                "3:1 à 10:1": [0, 4, 4, 5, 6, 7, 10, 15, 20, 26, 33, 42, 51, 62, 74, 86, 100],
+                "> 10:1": [0, 4, 5, 6, 9, 11, 16, 22, 28, 35, 43, 52, 62, 73, 85, 98, 100]
+            },
+            100: {
+                "< 3:1": [0, 4, 4, 4, 5, 5, 8, 11, 15, 20, 26, 32, 40, 48, 58, 68, 79, 100],
+                "3:1 à 10:1": [0, 4, 4, 4, 5, 6, 9, 13, 17, 22, 28, 35, 42, 51, 60, 70, 81, 100],
+                "> 10:1": [0, 4, 4, 6, 8, 10, 14, 19, 25, 31, 37, 44, 52, 61, 71, 81, 92, 100]
+            },
+            150: {
+                "< 3:1": [0, 4, 4, 4, 4, 5, 6, 8, 11, 14, 18, 23, 28, 33, 40, 46, 54, 70, 89, 100],
+                "3:1 à 10:1": [0, 4, 4, 4, 5, 6, 8, 10, 13, 16, 20, 25, 30, 36, 42, 49, 56, 73, 92, 100],
+                "> 10:1": [0, 4, 4, 5, 7, 8, 12, 16, 20, 24, 29, 34, 39, 46, 52, 59, 67, 84, 100]
+            },
+            250: {
+                "< 3:1": [0, 4, 4, 4, 4, 4, 5, 7, 8, 10, 12, 15, 18, 22, 25, 29, 34, 44, 55, 68, 100],
+                "3:1 à 10:1": [0, 4, 4, 4, 4, 5, 6, 8, 10, 12, 14, 17, 20, 24, 27, 32, 36, 46, 57, 70, 100],
+                "> 10:1": [0, 4, 4, 5, 6, 7, 9, 12, 15, 18, 21, 25, 28, 32, 37, 41, 46, 56, 68, 81, 100]
+            },
+            350: {
+                "< 3:1": [0, 4, 4, 4, 4, 4, 5, 6, 7, 8, 10, 12, 14, 16, 19, 22, 25, 32, 40, 49, 77, 100],
+                "3:1 à 10:1": [0, 4, 4, 4, 4, 4, 5, 7, 8, 10, 12, 14, 16, 18, 21, 24, 27, 34, 43, 52, 79, 100],
+                "> 10:1": [0, 4, 4, 4, 5, 6, 8, 10, 13, 15, 18, 21, 23, 26, 30, 33, 36, 44, 53, 62, 90, 100]
+            },
+            500: {
+                "< 3:1": [0, 4, 4, 4, 4, 4, 4, 5, 6, 7, 8, 9, 11, 13, 14, 16, 19, 24, 29, 36, 55, 78, 100],
+                "3:1 à 10:1": [0, 4, 4, 4, 4, 4, 5, 6, 7, 8, 9, 11, 13, 14, 16, 18, 21, 26, 31, 38, 57, 80, 100],
+                "> 10:1": [0, 4, 4, 4, 5, 5, 7, 9, 11, 13, 15, 17, 19, 21, 24, 26, 29, 35, 41, 48, 68, 92, 100]
+            },
+            1000: {
+                "< 3:1": [0, 4, 4, 4, 4, 4, 4, 4, 5, 5, 6, 6, 7, 8, 9, 10, 11, 14, 16, 20, 29, 41, 55, 71, 89, 100],
+                "3:1 à 10:1": [0, 4, 4, 4, 4, 4, 4, 5, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 18, 22, 31, 43, 57, 73, 91, 100],
+                "> 10:1": [0, 4, 4, 4, 4, 5, 6, 7, 8, 9, 11, 12, 13, 15, 16, 18, 20, 23, 26, 30, 41, 53, 68, 84, 100]
+            },
+            2000: {
+                "< 3:1": [0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 6, 6, 7, 7, 9, 10, 12, 16, 22, 29, 37, 46, 56, 68, 80, 94, 100],
+                "3:1 à 10:1": [0, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 6, 6, 7, 7, 8, 9, 10, 12, 13, 18, 24, 31, 39, 49, 59, 70, 83, 96, 100],
+                "> 10:1": [0, 4, 4, 4, 4, 4, 5, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 26, 33, 41, 50, 59, 70, 81, 94, 100]
             }
-        };
-
-        function calculate91014() {
-            const usage = document.getElementById('usage_91014').value;
-            const distance = parseFloat(document.getElementById('distance_91014').value);
-            const surface = parseFloat(document.getElementById('surface_91014').value);
-
-            if (isNaN(distance) || isNaN(surface)) {
-                document.getElementById('method91014-result').innerText = "Erreur : Veuillez entrer des valeurs numériques valides.";
-                return;
-            }
-
-            const distances = tableau91014[usage].distances;
-            const percentages = tableau91014[usage].percentages;
-            const { lower, upper } = findBounds(distance, distances);
-            const lowerIndex = distances.indexOf(lower);
-            const upperIndex = distances.indexOf(upper);
-            const lowerPercentage = percentages[lowerIndex];
-            const upperPercentage = percentages[upperIndex];
-            const interpolatedPercentage = interpolate(distance, lower, upper, lowerPercentage, upperPercentage);
-            const maxArea = (interpolatedPercentage / 100) * surface;
-
-            document.getElementById('method91014-result').innerText = `Pourcentage maximal : ${interpolatedPercentage.toFixed(2)}%\nSurface maximale : ${maxArea.toFixed(2)} m²`;
-        }
-
-        // Données du Tableau 9.10.15.4
-        const glazedOpeningsTable = {
-            30: [0, 7, 9, 12, 39, 88, 100],
-            40: [0, 7, 8, 11, 32, 69, 100],
-            50: [0, 7, 8, 10, 28, 57, 100],
-            100: [0, 7, 8, 9, 18, 34, 56, 84, 100],
-            "Plus de 100": [0, 7, 7, 8, 12, 19, 28, 40, 55, 92, 100],
-        };
-
-        const limitingDistancesHouses = [0, 1.2, 1.5, 2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 16.0, 20.0];
-        const facadeSurfacesHouses = [30, 40, 50, 100];
-
-        function calculate91015() {
-            const usage = document.getElementById('usage_91015').value;
-            const distance = parseFloat(document.getElementById('distance_91015').value);
-            const surface = parseFloat(document.getElementById('surface_91015').value);
-
-            if (isNaN(distance) || isNaN(surface)) {
-                document.getElementById('method91015-result').innerText = "Erreur : Veuillez entrer des valeurs numériques valides.";
-                return;
-            }
-
-            const closestSurface = surface > 100 ? "Plus de 100" : findBounds(surface, facadeSurfacesHouses);
-            const surfaceKey = surface > 100 ? "Plus de 100" : closestSurface.lower;
-            const { lower: lowerDistance, upper: upperDistance } = findBounds(distance, limitingDistancesHouses);
-            const lowerDistanceIndex = limitingDistancesHouses.indexOf(lowerDistance);
-            const upperDistanceIndex = limitingDistancesHouses.indexOf(upperDistance);
-            const lowerPercentage = glazedOpeningsTable[surfaceKey][lowerDistanceIndex];
-            const upperPercentage = glazedOpeningsTable[surfaceKey][upperDistanceIndex];
-            let percentage = interpolate(distance, lowerDistance, upperDistance, lowerPercentage, upperPercentage);
-
-            // Ajustement pour distance ≤ 2 m sans gicleurs (hypothèse : pas de gicleurs ici)
-            if (distance <= 2) percentage = Math.min(percentage, 50);
-
-            const maxArea = (percentage / 100) * surface;
-
-            document.getElementById('method91015-result').innerText = `Pourcentage maximal : ${percentage.toFixed(2)}%\nSurface maximale : ${maxArea.toFixed(2)} m²`;
-        }
-
-        function openTab(event, tabName) {
-            var tabcontent = document.getElementsByClassName("tab-content");
-            for (var i = 0; i < tabcontent.length; i++) tabcontent[i].classList.remove("active");
-            var tablinks = document.getElementsByClassName("tab-link");
-            for (var i = 0; i < tablinks.length; i++) tablinks[i].classList.remove("active");
-            document.getElementById(tabName).classList.add("active");
-            event.currentTarget.classList.add("active");
-        }
-    </script>
-</body>
-</html>
