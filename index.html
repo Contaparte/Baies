@@ -26,9 +26,9 @@
     <div id="app">
         <h1>Calculateur de baies non protégées (CNB)</h1>
         <div class="tab-nav">
-            <button class="tab-link active" onclick="openTab('cnb')">Méthode CNB (3.2.3.)</button>
-            <button class="tab-link" onclick="openTab('method91014')">Méthode 9.10.14</button>
-            <button class="tab-link" onclick="openTab('method91015')">Méthode 9.10.15</button>
+            <button class="tab-link active" onclick="openTab(event, 'cnb')">Méthode CNB (3.2.3.)</button>
+            <button class="tab-link" onclick="openTab(event, 'method91014')">Méthode 9.10.14</button>
+            <button class="tab-link" onclick="openTab(event, 'method91015')">Méthode 9.10.15</button>
         </div>
 
         <!-- Onglet Méthode CNB (3.2.3.) -->
@@ -136,7 +136,7 @@
                 "> 10:1": [0, 9, 13, 21, 30, 39, 62, 90, 100],
             },
             30: {
-                "< 3:1": [0, 7, 9, 12, 15, 20, 35, 61, 88, 100], // Corrigé : 17 → 15 pour 2.5 m
+                "< 3:1": [0, 7, 9, 12, 15, 20, 35, 61, 88, 100],
                 "3:1 à 10:1": [0, 7, 9, 12, 17, 23, 39, 61, 88, 100],
                 "> 10:1": [0, 8, 12, 19, 27, 38, 56, 79, 100],
             },
@@ -387,4 +387,22 @@
             const upperPercentage = glazedOpeningsTable[surfaceKey][upperDistanceIndex];
             let percentage = interpolate(distance, lowerDistance, upperDistance, lowerPercentage, upperPercentage);
 
-            // Ajustement pour distance ≤ 2 m sans gicleurs (
+            // Ajustement pour distance ≤ 2 m sans gicleurs (hypothèse : pas de gicleurs ici)
+            if (distance <= 2) percentage = Math.min(percentage, 50);
+
+            const maxArea = (percentage / 100) * surface;
+
+            document.getElementById('method91015-result').innerText = `Pourcentage maximal : ${percentage.toFixed(2)}%\nSurface maximale : ${maxArea.toFixed(2)} m²`;
+        }
+
+        function openTab(event, tabName) {
+            var tabcontent = document.getElementsByClassName("tab-content");
+            for (var i = 0; i < tabcontent.length; i++) tabcontent[i].classList.remove("active");
+            var tablinks = document.getElementsByClassName("tab-link");
+            for (var i = 0; i < tablinks.length; i++) tablinks[i].classList.remove("active");
+            document.getElementById(tabName).classList.add("active");
+            event.currentTarget.classList.add("active");
+        }
+    </script>
+</body>
+</html>
