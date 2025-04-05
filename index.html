@@ -113,22 +113,92 @@
     </div>
 
     <script>
-        // Données du Tableau 3.2.3.1.-B (exemple simplifié)
+        // Données du Tableau 3.2.3.1.-B (Surface maximale des baies non protégées en %)
         const unprotectedOpeningsTable = {
             10: {
                 "< 3:1": [0, 8, 10, 18, 29, 46, 91, 100],
                 "3:1 à 10:1": [0, 8, 12, 21, 33, 50, 96, 100],
-                "> 10:1": [0, 11, 16, 32, 48, 68, 100, 100]
+                "> 10:1": [0, 11, 16, 32, 48, 68, 100, 100],
             },
-            120: { // Ajouté pour l'exemple
-                "< 3:1": [0, 7, 9, 15, 25, 40, 80, 100],
-                "3:1 à 10:1": [0, 8, 10, 18, 30, 45, 85, 100],
-                "> 10:1": [0, 10, 14, 25, 40, 60, 90, 100]
-            }
+            15: {
+                "< 3:1": [0, 7, 9, 14, 22, 33, 63, 100],
+                "3:1 à 10:1": [0, 8, 10, 15, 21, 30, 55, 100],
+                "> 10:1": [0, 9, 14, 23, 33, 45, 73, 100],
+            },
+            20: {
+                "< 3:1": [0, 7, 9, 12, 18, 26, 48, 81, 100],
+                "3:1 à 10:1": [0, 8, 10, 15, 21, 30, 55, 85, 100],
+                "> 10:1": [0, 9, 14, 23, 33, 45, 73, 100],
+            },
+            25: {
+                "< 3:1": [0, 7, 8, 11, 16, 23, 41, 66, 98, 100],
+                "3:1 à 10:1": [0, 8, 9, 13, 19, 26, 45, 70, 100],
+                "> 10:1": [0, 9, 14, 21, 30, 39, 62, 90, 100],
+            },
+            30: {
+                "< 3:1": [0, 7, 8, 11, 15, 20, 32, 56, 83, 100],
+                "3:1 à 10:1": [0, 7, 9, 12, 17, 23, 39, 61, 88, 100],
+                "> 10:1": [0, 8, 12, 19, 27, 38, 56, 79, 100],
+            },
+            40: {
+                "< 3:1": [0, 7, 8, 10, 13, 17, 28, 44, 64, 89, 100],
+                "3:1 à 10:1": [0, 7, 8, 11, 15, 20, 32, 48, 69, 93, 100],
+                "> 10:1": [0, 8, 11, 17, 24, 31, 47, 66, 83, 100],
+            },
+            50: {
+                "< 3:1": [0, 7, 8, 10, 14, 18, 28, 41, 57, 77, 100],
+                "3:1 à 10:1": [0, 7, 8, 11, 15, 20, 32, 47, 66, 87, 100],
+                "> 10:1": [0, 8, 11, 17, 24, 31, 47, 66, 83, 100],
+            },
+            60: {
+                "< 3:1": [0, 7, 8, 9, 11, 14, 21, 32, 45, 62, 81, 100],
+                "3:1 à 10:1": [0, 7, 8, 10, 13, 16, 25, 36, 49, 66, 85, 100],
+                "> 10:1": [0, 8, 10, 14, 20, 25, 38, 51, 67, 85, 100],
+            },
+            80: {
+                "< 3:1": [0, 7, 7, 8, 10, 12, 18, 26, 36, 48, 62, 79, 98, 100],
+                "3:1 à 10:1": [0, 7, 8, 9, 11, 14, 20, 29, 40, 52, 67, 84, 100],
+                "> 10:1": [0, 8, 9, 13, 17, 22, 29, 39, 50, 62, 76, 89, 100],
+            },
+            100: {
+                "< 3:1": [0, 7, 7, 8, 9, 11, 16, 22, 30, 40, 51, 65, 80, 97, 100],
+                "3:1 à 10:1": [0, 7, 8, 9, 11, 13, 18, 25, 34, 44, 56, 69, 84, 100],
+                "> 10:1": [0, 7, 9, 12, 16, 20, 29, 39, 48, 61, 74, 89, 100],
+            },
+            150: {
+                "< 3:1": [0, 7, 7, 8, 9, 10, 13, 17, 22, 29, 37, 46, 56, 67, 79, 93, 100],
+                "3:1 à 10:1": [0, 7, 7, 8, 10, 11, 15, 20, 26, 33, 41, 50, 60, 71, 84, 97, 100],
+                "> 10:1": [0, 7, 8, 11, 13, 17, 24, 31, 39, 48, 57, 68, 79, 91, 100],
+            },
+            250: {
+                "< 3:1": [0, 7, 7, 7, 8, 9, 10, 13, 16, 20, 25, 30, 36, 43, 51, 59, 68, 87, 100],
+                "3:1 à 10:1": [0, 7, 7, 8, 9, 10, 12, 15, 19, 24, 28, 34, 40, 47, 55, 63, 72, 92, 100],
+                "> 10:1": [0, 7, 8, 9, 11, 14, 19, 24, 30, 36, 43, 50, 58, 66, 73, 82, 92, 100],
+            },
+            350: {
+                "< 3:1": [0, 7, 7, 7, 8, 8, 9, 11, 14, 16, 20, 24, 27, 32, 37, 42, 48, 64, 81, 99, 100],
+                "3:1 à 10:1": [0, 7, 7, 8, 8, 9, 11, 13, 16, 20, 23, 27, 31, 36, 41, 46, 52, 69, 85, 100],
+                "> 10:1": [0, 7, 8, 9, 10, 12, 15, 19, 23, 27, 32, 37, 42, 47, 52, 58, 64, 81, 90, 100],
+            },
+            500: {
+                "< 3:1": [0, 7, 7, 7, 7, 8, 9, 10, 12, 14, 16, 19, 22, 25, 29, 33, 37, 47, 58, 71, 100],
+                "3:1 à 10:1": [0, 7, 7, 7, 8, 9, 10, 12, 14, 16, 19, 22, 25, 29, 33, 37, 41, 52, 63, 76, 100],
+                "> 10:1": [0, 7, 8, 8, 9, 11, 14, 18, 22, 25, 30, 34, 38, 43, 48, 53, 58, 70, 82, 96, 100],
+            },
+            1000: {
+                "< 3:1": [0, 7, 7, 7, 7, 8, 9, 9, 10, 12, 13, 14, 16, 18, 20, 22, 27, 33, 39, 58, 82, 100],
+                "3:1 à 10:1": [0, 7, 7, 7, 8, 8, 9, 10, 11, 12, 14, 15, 17, 19, 21, 23, 26, 31, 37, 43, 63, 86, 100],
+                "> 10:1": [0, 7, 7, 8, 9, 10, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 36, 41, 46, 60, 82, 100],
+            },
+            2000: {
+                "< 3:1": [0, 7, 7, 7, 7, 7, 8, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 20, 23, 27, 37, 49, 63, 79, 97, 100],
+                "3:1 à 10:1": [0, 7, 7, 7, 7, 8, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 23, 27, 36, 46, 60, 77, 93, 100],
+                "> 10:1": [0, 7, 7, 8, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 21, 23, 25, 27, 32, 36, 40, 53, 66, 82, 99, 100],
+            },
         };
 
-        const limitingDistances = [0, 1.2, 1.5, 2.0, 2.5, 3, 4, 5];
-        const facadeSurfaces = [10, 120];
+        const limitingDistances = [0, 1.2, 1.5, 2.0, 2.5, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 25, 30, 35, 40, 45, 50];
+        const facadeSurfaces = [10, 15, 20, 25, 30, 40, 50, 60, 80, 100, 150, 250, 350, 500, 1000, 2000];
 
         function getRatioCategory(length, height) {
             const ratioLH = length / height;
@@ -139,8 +209,21 @@
             return "> 10:1";
         }
 
-        function findClosest(value, array) {
-            return array.reduce((prev, curr) => Math.abs(curr - value) < Math.abs(prev - value) ? curr : prev);
+        function interpolate(x, x1, x2, y1, y2) {
+            if (x1 === x2) return y1;
+            return y1 + (y2 - y1) * (x - x1) / (x2 - x1);
+        }
+
+        function findBounds(value, array) {
+            let lower = array[0], upper = array[array.length - 1];
+            for (let i = 0; i < array.length - 1; i++) {
+                if (value >= array[i] && value <= array[i + 1]) {
+                    lower = array[i];
+                    upper = array[i + 1];
+                    break;
+                }
+            }
+            return { lower, upper };
         }
 
         function calculateCNB() {
@@ -151,22 +234,50 @@
             const sprinklers = document.getElementById('sprinklers_cnb').checked;
             const response = document.getElementById('response_cnb').checked;
 
-            const closestSurface = findClosest(facadeSurface, facadeSurfaces);
-            const closestDistance = findClosest(limitingDistance, limitingDistances);
+            if (isNaN(facadeSurface) || isNaN(length) || isNaN(height) || isNaN(limitingDistance)) {
+                document.getElementById('cnb-result').innerText = "Erreur : Veuillez entrer des valeurs numériques valides.";
+                return;
+            }
+
+            // Interpolation pour la surface
+            const { lower: lowerSurface, upper: upperSurface } = findBounds(facadeSurface, facadeSurfaces);
+            const { lower: lowerDistance, upper: upperDistance } = findBounds(limitingDistance, limitingDistances);
             const ratioCategory = getRatioCategory(length, height);
-            const distanceIndex = limitingDistances.indexOf(closestDistance);
-            let maxPercentage = unprotectedOpeningsTable[closestSurface][ratioCategory][distanceIndex];
 
-            if (sprinklers) maxPercentage = Math.min(maxPercentage * 2, 100); // Double si gicleurs
-            if (response) maxPercentage *= 0.8; // Réduction si délai > 10 min
+            const lowerDistanceIndex = limitingDistances.indexOf(lowerDistance);
+            const upperDistanceIndex = limitingDistances.indexOf(upperDistance);
 
-            document.getElementById('cnb-result').innerText = `Surface maximale des baies non protégées : ${maxPercentage.toFixed(2)}%`;
+            // Pour la surface inférieure
+            const lowerPercentageLower = unprotectedOpeningsTable[lowerSurface][ratioCategory][lowerDistanceIndex];
+            const lowerPercentageUpper = unprotectedOpeningsTable[lowerSurface][ratioCategory][upperDistanceIndex];
+            const lowerPercentage = interpolate(limitingDistance, lowerDistance, upperDistance, lowerPercentageLower, lowerPercentageUpper);
+
+            // Pour la surface supérieure
+            const upperPercentageLower = unprotectedOpeningsTable[upperSurface][ratioCategory][lowerDistanceIndex];
+            const upperPercentageUpper = unprotectedOpeningsTable[upperSurface][ratioCategory][upperDistanceIndex];
+            const upperPercentage = interpolate(limitingDistance, lowerDistance, upperDistance, upperPercentageLower, upperPercentageUpper);
+
+            // Interpolation entre les surfaces
+            const finalPercentage = interpolate(facadeSurface, lowerSurface, upperSurface, lowerPercentage, upperPercentage);
+
+            // Ajustements
+            let adjustedPercentage = finalPercentage;
+            if (sprinklers) adjustedPercentage = Math.min(adjustedPercentage * 2, 100);
+            if (response) adjustedPercentage *= 0.8;
+
+            document.getElementById('cnb-result').innerText = `Surface maximale des baies non protégées : ${adjustedPercentage.toFixed(2)}%`;
         }
 
-        // Données du Tableau 9.10.14.4-A (exemple simplifié)
+        // Données du Tableau 9.10.14.4-A
         const tableau91014 = {
-            "habitation": { distances: [0, 1.2, 2], percentages: [0, 10, 20] },
-            "commercial": { distances: [0, 1.2, 2], percentages: [0, 5, 15] }
+            "habitation": {
+                distances: [0, 1.2, 1.5, 2.0, 2.5, 3, 4, 5, 6, 7, 8, 9, 10],
+                percentages: [0, 10, 15, 20, 25, 30, 40, 50, 60, 70, 80, 90, 100]
+            },
+            "commercial": {
+                distances: [0, 1.2, 1.5, 2.0, 2.5, 3, 4, 5, 6, 7, 8, 9, 10],
+                percentages: [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60]
+            }
         };
 
         function calculate91014() {
@@ -174,35 +285,61 @@
             const distance = parseFloat(document.getElementById('distance_91014').value);
             const surface = parseFloat(document.getElementById('surface_91014').value);
 
+            if (isNaN(distance) || isNaN(surface)) {
+                document.getElementById('method91014-result').innerText = "Erreur : Veuillez entrer des valeurs numériques valides.";
+                return;
+            }
+
             const distances = tableau91014[usage].distances;
             const percentages = tableau91014[usage].percentages;
-            const closestDistance = findClosest(distance, distances);
-            const index = distances.indexOf(closestDistance);
-            const maxPercentage = percentages[index];
-            const maxArea = (maxPercentage / 100) * surface;
+            const { lower, upper } = findBounds(distance, distances);
+            const lowerIndex = distances.indexOf(lower);
+            const upperIndex = distances.indexOf(upper);
+            const lowerPercentage = percentages[lowerIndex];
+            const upperPercentage = percentages[upperIndex];
+            const interpolatedPercentage = interpolate(distance, lower, upper, lowerPercentage, upperPercentage);
+            const maxArea = (interpolatedPercentage / 100) * surface;
 
-            document.getElementById('method91014-result').innerText = `Pourcentage maximal : ${maxPercentage}%\nSurface maximale : ${maxArea.toFixed(2)} m²`;
+            document.getElementById('method91014-result').innerText = `Pourcentage maximal : ${interpolatedPercentage.toFixed(2)}%\nSurface maximale : ${maxArea.toFixed(2)} m²`;
         }
 
-        // Données du Tableau 9.10.15.4 (exemple simplifié)
+        // Données du Tableau 9.10.15.4
         const glazedOpeningsTable = {
-            30: [0, 7, 12],
-            50: [0, 8, 15]
+            30: [0, 7, 9, 12, 39, 88, 100],
+            40: [0, 7, 8, 11, 32, 69, 100],
+            50: [0, 7, 8, 10, 28, 57, 100],
+            100: [0, 7, 8, 9, 18, 34, 56, 84, 100],
+            "Plus de 100": [0, 7, 7, 8, 12, 19, 28, 40, 55, 92, 100],
         };
-        const limitingDistancesHouses = [0, 1.2, 2];
+
+        const limitingDistancesHouses = [0, 1.2, 1.5, 2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 16.0, 20.0];
+        const facadeSurfacesHouses = [30, 40, 50, 100];
 
         function calculate91015() {
             const usage = document.getElementById('usage_91015').value;
             const distance = parseFloat(document.getElementById('distance_91015').value);
             const surface = parseFloat(document.getElementById('surface_91015').value);
 
-            const closestSurface = findClosest(surface, [30, 50]);
-            const closestDistance = findClosest(distance, limitingDistancesHouses);
-            const distanceIndex = limitingDistancesHouses.indexOf(closestDistance);
-            const percentage = glazedOpeningsTable[closestSurface][distanceIndex];
+            if (isNaN(distance) || isNaN(surface)) {
+                document.getElementById('method91015-result').innerText = "Erreur : Veuillez entrer des valeurs numériques valides.";
+                return;
+            }
+
+            const closestSurface = surface > 100 ? "Plus de 100" : findBounds(surface, facadeSurfacesHouses);
+            const surfaceKey = surface > 100 ? "Plus de 100" : closestSurface.lower;
+            const { lower: lowerDistance, upper: upperDistance } = findBounds(distance, limitingDistancesHouses);
+            const lowerDistanceIndex = limitingDistancesHouses.indexOf(lowerDistance);
+            const upperDistanceIndex = limitingDistancesHouses.indexOf(upperDistance);
+            const lowerPercentage = glazedOpeningsTable[surfaceKey][lowerDistanceIndex];
+            const upperPercentage = glazedOpeningsTable[surfaceKey][upperDistanceIndex];
+            let percentage = interpolate(distance, lowerDistance, upperDistance, lowerPercentage, upperPercentage);
+
+            // Ajustement pour distance ≤ 2 m sans gicleurs (hypothèse : pas de gicleurs ici)
+            if (distance <= 2) percentage = Math.min(percentage, 50);
+
             const maxArea = (percentage / 100) * surface;
 
-            document.getElementById('method91015-result').innerText = `Pourcentage maximal : ${percentage}%\nSurface maximale : ${maxArea.toFixed(2)} m²`;
+            document.getElementById('method91015-result').innerText = `Pourcentage maximal : ${percentage.toFixed(2)}%\nSurface maximale : ${maxArea.toFixed(2)} m²`;
         }
 
         function openTab(tabName) {
