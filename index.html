@@ -113,7 +113,7 @@
     </div>
 
     <script>
-        // Données du Tableau 3.2.3.1.-B (Sans gicleurs)
+        // Données du Tableau 3.2.3.1.-B (Sans gicleurs) - Corrigées
         const unprotectedOpeningsTableNoSprinklers = {
             10: {
                 "< 3:1": [0, 8, 10, 18, 29, 46, 91, 100],
@@ -136,7 +136,7 @@
                 "> 10:1": [0, 9, 13, 21, 30, 39, 62, 90, 100],
             },
             30: {
-                "< 3:1": [0, 7, 9, 12, 17, 20, 35, 61, 88, 100],
+                "< 3:1": [0, 7, 9, 12, 15, 20, 35, 61, 88, 100], // Corrigé : 17 → 15 pour 2.5 m
                 "3:1 à 10:1": [0, 7, 9, 12, 17, 23, 39, 61, 88, 100],
                 "> 10:1": [0, 8, 12, 19, 27, 38, 56, 79, 100],
             },
@@ -197,10 +197,10 @@
             },
         };
 
-        // Données du Tableau 3.2.3.1.-D (Avec gicleurs) - Corrigées
+        // Données du Tableau 3.2.3.1.-D (Avec gicleurs)
         const unprotectedOpeningsTableWithSprinklers = {
             10: [0, 16, 24, 34, 50, 74, 100],
-            15: [0, 16, 24, 42, 66, 74, 100], // Corrigé : [0, 16, 22, 30, 42, 60, 100] → [0, 16, 24, 42, 66, 74, 100]
+            15: [0, 16, 24, 42, 66, 74, 100],
             20: [0, 16, 20, 30, 42, 60, 100],
             25: [0, 16, 18, 26, 38, 52, 90, 100],
             30: [0, 14, 18, 24, 34, 46, 78, 100],
@@ -387,22 +387,4 @@
             const upperPercentage = glazedOpeningsTable[surfaceKey][upperDistanceIndex];
             let percentage = interpolate(distance, lowerDistance, upperDistance, lowerPercentage, upperPercentage);
 
-            // Ajustement pour distance ≤ 2 m sans gicleurs (hypothèse : pas de gicleurs ici)
-            if (distance <= 2) percentage = Math.min(percentage, 50);
-
-            const maxArea = (percentage / 100) * surface;
-
-            document.getElementById('method91015-result').innerText = `Pourcentage maximal : ${percentage.toFixed(2)}%\nSurface maximale : ${maxArea.toFixed(2)} m²`;
-        }
-
-        function openTab(tabName) {
-            var tabcontent = document.getElementsByClassName("tab-content");
-            for (var i = 0; i < tabcontent.length; i++) tabcontent[i].classList.remove("active");
-            var tablinks = document.getElementsByClassName("tab-link");
-            for (var i = 0; i < tablinks.length; i++) tablinks[i].classList.remove("active");
-            document.getElementById(tabName).classList.add("active");
-            event.currentTarget.classList.add("active");
-        }
-    </script>
-</body>
-</html>
+            // Ajustement pour distance ≤ 2 m sans gicleurs (
