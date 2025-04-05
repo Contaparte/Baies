@@ -122,8 +122,8 @@
             },
             15: {
                 "< 3:1": [0, 7, 9, 14, 22, 33, 63, 100],
-                "3:1 à 10:1": [0, 8, 10, 15, 21, 30, 55, 100],
-                "> 10:1": [0, 9, 14, 23, 33, 45, 73, 100],
+                "3:1 à 10:1": [0, 8, 10, 17, 25, 37, 67, 100],
+                "> 10:1": [0, 10, 15, 26, 39, 56, 87, 100],
             },
             20: {
                 "< 3:1": [0, 7, 9, 12, 18, 26, 48, 81, 100],
@@ -133,10 +133,10 @@
             25: {
                 "< 3:1": [0, 7, 8, 11, 16, 23, 41, 66, 98, 100],
                 "3:1 à 10:1": [0, 8, 9, 13, 19, 26, 45, 70, 100],
-                "> 10:1": [0, 9, 14, 21, 30, 39, 62, 90, 100],
+                "> 10:1": [0, 9, 13, 21, 30, 39, 62, 90, 100],
             },
             30: {
-                "< 3:1": [0, 7, 8, 11, 15, 20, 32, 56, 83, 100],
+                "< 3:1": [0, 7, 8, 11, 15, 20, 35, 61, 88, 100],
                 "3:1 à 10:1": [0, 7, 9, 12, 17, 23, 39, 61, 88, 100],
                 "> 10:1": [0, 8, 12, 19, 27, 38, 56, 79, 100],
             },
@@ -146,9 +146,9 @@
                 "> 10:1": [0, 8, 11, 17, 24, 31, 47, 66, 83, 100],
             },
             50: {
-                "< 3:1": [0, 7, 8, 10, 14, 18, 28, 41, 57, 77, 100],
-                "3:1 à 10:1": [0, 7, 8, 11, 15, 20, 32, 47, 66, 87, 100],
-                "> 10:1": [0, 8, 11, 17, 24, 31, 47, 66, 83, 100],
+                "< 3:1": [0, 7, 8, 9, 12, 15, 24, 37, 53, 72, 96, 100],
+                "3:1 à 10:1": [0, 7, 8, 10, 14, 18, 28, 41, 57, 77, 100],
+                "> 10:1": [0, 8, 11, 15, 21, 28, 41, 57, 76, 87, 100],
             },
             60: {
                 "< 3:1": [0, 7, 8, 9, 11, 14, 21, 32, 45, 62, 81, 100],
@@ -239,26 +239,40 @@
                 return;
             }
 
-            // Interpolation pour la surface
-            const { lower: lowerSurface, upper: upperSurface } = findBounds(facadeSurface, facadeSurfaces);
-            const { lower: lowerDistance, upper: upperDistance } = findBounds(limitingDistance, limitingDistances);
             const ratioCategory = getRatioCategory(length, height);
 
-            const lowerDistanceIndex = limitingDistances.indexOf(lowerDistance);
-            const upperDistanceIndex = limitingDistances.indexOf(upperDistance);
+            // Vérifier si la surface et la distance correspondent exactement à des valeurs du tableau
+            const surfaceExact = facadeSurfaces.includes(facadeSurface);
+            const distanceExact = limitingDistances.includes(limitingDistance);
 
-            // Pour la surface inférieure
-            const lowerPercentageLower = unprotectedOpeningsTable[lowerSurface][ratioCategory][lowerDistanceIndex];
-            const lowerPercentageUpper = unprotectedOpeningsTable[lowerSurface][ratioCategory][upperDistanceIndex];
-            const lowerPercentage = interpolate(limitingDistance, lowerDistance, upperDistance, lowerPercentageLower, lowerPercentageUpper);
+            let finalPercentage;
 
-            // Pour la surface supérieure
-            const upperPercentageLower = unprotectedOpeningsTable[upperSurface][ratioCategory][lowerDistanceIndex];
-            const upperPercentageUpper = unprotectedOpeningsTable[upperSurface][ratioCategory][upperDistanceIndex];
-            const upperPercentage = interpolate(limitingDistance, lowerDistance, upperDistance, upperPercentageLower, upperPercentageUpper);
+            if (surfaceExact && distanceExact) {
+                // Cas où les valeurs sont exactes : pas d'interpolation
+                const surfaceIndex = facadeSurfaces.indexOf(facadeSurface);
+                const distanceIndex = limitingDistances.indexOf(limitingDistance);
+                finalPercentage = unprotectedOpeningsTable[facadeSurface][ratioCategory][distanceIndex];
+            } else {
+                // Cas où une interpolation est nécessaire
+                const { lower: lowerSurface, upper: upperSurface } = findBounds(facadeSurface, facadeSurfaces);
+                const { lower: lowerDistance, upper: upperDistance } = findBounds(limitingDistance, limitingDistances);
 
-            // Interpolation entre les surfaces
-            const finalPercentage = interpolate(facadeSurface, lowerSurface, upperSurface, lowerPercentage, upperPercentage);
+                const lowerDistanceIndex = limitingDistances.indexOf(lowerDistance);
+                const upperDistanceIndex = limitingDistances.indexOf(upperDistance);
+
+                // Pour la surface inférieure
+                const lowerPercentageLower = unprotectedOpeningsTable[lowerSurface][ratioCategory][lowerDistanceIndex];
+                const lowerPercentageUpper = unprotectedOpeningsTable[lowerSurface][ratioCategory][upperDistanceIndex];
+                const lowerPercentage = interpolate(limitingDistance, lowerDistance, upperDistance, lowerPercentageLower, lowerPercentageUpper);
+
+                // Pour la surface supérieure
+                const upperPercentageLower = unprotectedOpeningsTable[upperSurface][ratioCategory][lowerDistanceIndex];
+                const upperPercentageUpper = unprotectedOpeningsTable[upperSurface][ratioCategory][upperDistanceIndex];
+                const upperPercentage = interpolate(limitingDistance, lowerDistance, upperDistance, upperPercentageLower, upperPercentageUpper);
+
+                // Interpolation entre les surfaces
+                finalPercentage = interpolate(facadeSurface, lowerSurface, upperSurface, lowerPercentage, upperPercentage);
+            }
 
             // Ajustements
             let adjustedPercentage = finalPercentage;
